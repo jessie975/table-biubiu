@@ -34,7 +34,14 @@
 export default {
   name: 'HelloWorld',
   props: {
+<<<<<<< HEAD
     msg: String
+=======
+    msg: {
+      type: String,
+      default: 'vue'
+    }
+>>>>>>> 5705de59eb31f8146c4a840d783e2bc57eade539
   }
 }
 </script>

@@ -1,26 +1,46 @@
 {
+<<<<<<< HEAD
   "name": "tabel-biubiu",
   "version": "0.1.0",
   "private": true,
   "scripts": {
     "serve": "vue-cli-service serve",
+=======
+  "name": "table-biubiu",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "start": "vue-cli-service serve",
+>>>>>>> 5705de59eb31f8146c4a840d783e2bc57eade539
     "build": "vue-cli-service build",
     "lint": "vue-cli-service lint"
   },
   "dependencies": {
     "core-js": "^2.6.5",
+<<<<<<< HEAD
     "lodash.throttle": "^4.1.1",
     "vue": "^2.6.10",
     "vue-mouse-menu": "^1.1.0"
+=======
+    "lodash.debounce": "^4.0.8",
+    "lodash.throttle": "^4.1.1",
+    "vue": "^2.6.10"
+>>>>>>> 5705de59eb31f8146c4a840d783e2bc57eade539
   },
   "devDependencies": {
     "@vue/cli-plugin-babel": "^3.9.0",
     "@vue/cli-plugin-eslint": "^3.9.0",
     "@vue/cli-service": "^3.9.0",
+<<<<<<< HEAD
     "babel-eslint": "^10.0.2",
     "eslint": "^5.16.0",
     "eslint-plugin-html": "^6.0.0",
     "eslint-plugin-vue": "^5.2.3",
+=======
+    "babel-eslint": "^10.0.1",
+    "eslint": "^5.16.0",
+    "eslint-plugin-vue": "^5.0.0",
+>>>>>>> 5705de59eb31f8146c4a840d783e2bc57eade539
     "vue-template-compiler": "^2.6.10"
   },
   "eslintConfig": {

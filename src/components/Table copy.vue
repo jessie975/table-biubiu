@@ -15,26 +15,25 @@
       @contextmenu="menuShow"
     >
       <tr v-for="(r,index) in tableData" :key="index">
-        <template v-for="(item,tdIndex) in r">
-          <td
-            v-if="!item.isMerge"
-            :key="tdIndex"
+        <td
+          v-for="(item,tdIndex) in r"
+          v-show="!item.isMerge"
+          :key="tdIndex"
+          :data-x="item.x"
+          :data-y="item.y"
+          :class="[item.select ? 'select' : '']"
+          :rowspan="item.rowspan"
+          :colspan="item.colspan"
+          @mousemove="moveAction"
+        >
+          <input
+            type="text"
             :data-x="item.x"
             :data-y="item.y"
-            :class="[item.select ? 'select' : '']"
-            :rowspan="item.rowspan"
-            :colspan="item.colspan"
-            @mousemove="moveAction"
+            :value="item.value"
+            @input="inputAction"
           >
-            <input
-              type="text"
-              :data-x="item.x"
-              :data-y="item.y"
-              :value="item.value"
-              @input="inputAction"
-            >
-          </td>
-        </template>
+        </td>
       </tr>
     </table>
     <Menu
@@ -192,16 +191,6 @@ export default {
         const arr = []
         const column = this.tableData[r].length
         for (let col = 0; col < parseInt(column); col++) {
-          let rowspanDefault = 1
-          let colspanDefault = 1
-          let isMerge = false
-          if (tableData[r][col].colspan !== 1 || tableData[r][col].rowspan !== 1) {
-            rowspanDefault = tableData[r][col].rowspan
-            colspanDefault = tableData[r][col].colspan
-          }
-          if (tableData[r][col].isMerge) {
-            isMerge = true
-          }
           const select = this.inRange(r, col)
           let value = ''
           if (r === max + 1) {
@@ -214,9 +203,8 @@ export default {
             x: r,
             y: col,
             select,
-            rowspan: rowspanDefault,
-            colspan: colspanDefault,
-            isMerge
+            rowspan: 1,
+            colspan: 1
           }
           arr.push(obj)
         }
@@ -235,16 +223,6 @@ export default {
         const arr = []
         const column = this.tableData[r].length
         for (let col = 0; col < parseInt(column) + 1; col++) {
-          let rowspanDefault = 1
-          let colspanDefault = 1
-          let isMerge = false
-          if (tableData[r][col].colspan !== 1 || tableData[r][col].rowspan !== 1) {
-            rowspanDefault = tableData[r][col].rowspan
-            colspanDefault = tableData[r][col].colspan
-          }
-          if (tableData[r][col].isMerge) {
-            isMerge = true
-          }
           const select = this.inRange(r, col)
           let value = ''
           if (col === max + 1) {
@@ -263,9 +241,8 @@ export default {
             x: r,
             y: col,
             select,
-            rowspan: rowspanDefault,
-            colspan: colspanDefault,
-            isMerge
+            rowspan: 1,
+            colspan: 1
           }
           arr.push(obj)
         }
@@ -285,7 +262,6 @@ export default {
       this.tableData.forEach((arr, index) => {
         arr.splice(Math.min(from, to), Math.abs(to - from) + 1)
       })
-      console.log(this.tableData)
     },
     mergeTd() {
       const { from: fromY, to: toY } = this.position.y
@@ -310,7 +286,6 @@ export default {
           }
         }
       }
-      console.log(tableData)
     },
     /**
      * 输入完成
@@ -329,6 +304,11 @@ export default {
       const tableData = [...this.tableData]
       const row = tableData.length
 
+      let rowHasMerge = false
+      let rowspanBack = 1
+      let colspanBack = 1
+      let xBack = 1
+      let yBack = 1
       for (let r = 0; r < parseInt(row); r++) {
         const arr = []
         const column = tableData[r].length
@@ -339,10 +319,28 @@ export default {
           if (tableData[r][col].colspan !== 1 || tableData[r][col].rowspan !== 1) {
             rowspanDefault = tableData[r][col].rowspan
             colspanDefault = tableData[r][col].colspan
+            rowspanBack = tableData[r][col].rowspan
+            colspanBack = tableData[r][col].colspan
+            xBack = r
+            yBack = col
+            rowHasMerge = true
           }
-          if (tableData[r][col].isMerge) {
+          /**
+           * 和 合并 的行在同一行
+           */
+          if (rowHasMerge && col > yBack && col < yBack + colspanBack) {
             isMerge = true
           }
+          /**
+           * 当前行为合并的行下面占据了一部分单元格的行
+           * 1. 存在合并单元格 rowHasMerge
+           * 2. 当前的行在被合并的单元格的下面的行（r > xBack）且 当前行在 xBack+rowspanBack
+           */
+          // if (rowHasMerge && r > xBack && r < xBack + rowspanBack) {
+          //   if (col > yBack && col <= yBack + colspanBack) {
+          //     isMerge = true
+          //   }
+          // }
           const select = this.inRange(r, col)
           const obj = {
             value: this.tableData[r][col].value,

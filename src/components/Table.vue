@@ -1,11 +1,5 @@
 <template>
   <div>
-    <div @click="clickBtn">
-      <button data-type="InsertRow">插入行</button>
-      <button data-type="InsertColumn">插入列</button>
-      <button data-type="deleteRow">删除行</button>
-      <button data-type="deleteColumn">删除列</button>
-    </div>
     <table
       id="table"
       @mousedown.left="downAction"
@@ -30,7 +24,7 @@
               type="text"
               :data-x="item.x"
               :data-y="item.y"
-              :value="item.value"
+              :value="'('+item.x+','+item.y+')'"
               @input="inputAction"
             >
           </td>
@@ -62,9 +56,10 @@ export default {
   data() {
     return {
       tableData: [], // colspan rowspan value x y // onmousedown onmousemove onmouseup
-      row: '5',
-      column: '8',
+      row: '10',
+      column: '10',
       mouseFlag: false,
+      mouseInMergeCell: false,
       /**
        * 选中的坐标
        */
@@ -188,18 +183,19 @@ export default {
       const { from, to } = this.position.x
       const max = Math.max(from, to)
       const tableData = []
+      const column = parseInt(this.column)
       for (let r = 0; r <= max + 1; r++) {
         const arr = []
-        const column = this.tableData[r].length
         for (let col = 0; col < parseInt(column); col++) {
           let rowspanDefault = 1
           let colspanDefault = 1
           let isMerge = false
-          if (tableData[r][col].colspan !== 1 || tableData[r][col].rowspan !== 1) {
-            rowspanDefault = tableData[r][col].rowspan
-            colspanDefault = tableData[r][col].colspan
+          if (this.tableData[r][col].colspan !== 1 || this.tableData[r][col].rowspan !== 1) {
+            // debugger
+            rowspanDefault = this.tableData[r][col].rowspan
+            colspanDefault = this.tableData[r][col].colspan
           }
-          if (tableData[r][col].isMerge) {
+          if (this.tableData[r][col].isMerge) {
             isMerge = true
           }
           const select = this.inRange(r, col)
@@ -234,17 +230,21 @@ export default {
       for (let r = 0; r < row; r++) {
         const arr = []
         const column = this.tableData[r].length
-        for (let col = 0; col < parseInt(column) + 1; col++) {
+        for (let col = 0; col <= parseInt(column); col++) {
           let rowspanDefault = 1
           let colspanDefault = 1
           let isMerge = false
-          if (tableData[r][col].colspan !== 1 || tableData[r][col].rowspan !== 1) {
-            rowspanDefault = tableData[r][col].rowspan
-            colspanDefault = tableData[r][col].colspan
+          // 新列没有rowspan和colspan
+          if (col < parseInt(column)) {
+            if (this.tableData[r][col].colspan !== 1 || this.tableData[r][col].rowspan !== 1) {
+              rowspanDefault = this.tableData[r][col].rowspan
+              colspanDefault = this.tableData[r][col].colspan
+            }
+            if (this.tableData[r][col].isMerge) {
+              isMerge = true
+            }
           }
-          if (tableData[r][col].isMerge) {
-            isMerge = true
-          }
+
           const select = this.inRange(r, col)
           let value = ''
           if (col === max + 1) {
@@ -285,7 +285,6 @@ export default {
       this.tableData.forEach((arr, index) => {
         arr.splice(Math.min(from, to), Math.abs(to - from) + 1)
       })
-      console.log(this.tableData)
     },
     mergeTd() {
       const { from: fromY, to: toY } = this.position.y
@@ -335,10 +334,14 @@ export default {
         for (let col = 0; col < parseInt(column); col++) {
           let rowspanDefault = 1
           let colspanDefault = 1
+          // let xDefault = r
+          // let yDefault = col
           let isMerge = false
           if (tableData[r][col].colspan !== 1 || tableData[r][col].rowspan !== 1) {
             rowspanDefault = tableData[r][col].rowspan
             colspanDefault = tableData[r][col].colspan
+            // xDefault = tableData[r][col].x
+            // yDefault = tableData[r][col].y
           }
           if (tableData[r][col].isMerge) {
             isMerge = true
@@ -365,6 +368,40 @@ export default {
         y: { from: yFrom, to: yTo }
       } = this.position
       /**
+       * 选中的单元格中包含合并后的单元格的选中区域
+       */
+      const minX = Math.min(xFrom, xTo)
+      const minY = Math.min(yFrom, yTo)
+      const maxX = Math.max(xFrom, xTo)
+      const maxY = Math.max(yFrom, yTo)
+      for (let r = minX; r <= maxX; r++) {
+        for (let col = minY; col <= maxY; col++) {
+          if (this.tableData[r][col].colspan !== 1 || this.tableData[r][col].rowspan !== 1) {
+            console.log('包含合并')
+            const colspan = this.tableData[r][col].colspan
+            const rowspan = this.tableData[r][col].rowspan
+            /**
+             * 左上到右下
+             */
+            if ((x >= xFrom && x <= xTo + rowspan - 1) && (y >= yFrom && y <= yTo + colspan - 1)) {
+              return true
+            }
+            /**
+             * 左下到右上
+             */
+            if ((x <= xFrom && x >= xTo) && (y >= yFrom && y <= yTo + colspan - 1)) {
+              return true
+            }
+            /**
+             * 右上 到 左下
+             */
+            if ((x >= xFrom && x <= xTo + rowspan - 1) && (y <= yFrom && y >= yTo)) {
+              return true
+            }
+          }
+        }
+      }
+      /**
        * 左上到右下
        */
       if (x >= xFrom && x <= xTo && (y >= yFrom && y <= yTo)) {
@@ -389,19 +426,6 @@ export default {
         return true
       }
       return false
-    },
-    clickBtn(event) {
-      if (event.target.dataset.type === 'deleteRow') {
-        this.deleteRow()
-      } else if (event.target.dataset.type === 'InsertColumn') {
-        this.InsertColumn()
-      } else if (event.target.dataset.type === 'deleteColumn') {
-        this.deleteColumn()
-      } else if (event.target.dataset.type === 'InsertRow') {
-        this.InsertRow()
-      } else {
-        return
-      }
     }
   }
 }

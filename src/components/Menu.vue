@@ -1,16 +1,9 @@
 <template>
   <ul :style="{top: menuTop+'px', left: menuLeft +'px'}" @click="handelClick">
-<<<<<<< HEAD
     <li data-type="InsertRow">插入行(↓)</li>
     <li data-type="InsertColumn">插入列(→)</li>
     <li data-type="deleteRow">删除行</li>
     <li data-type="deleteColumn">删除列</li>
-=======
-    <li data-type="deleteRow">删除行</li>
-    <li data-type="deleteColumn">删除列</li>
-    <li data-type="InsertRow">插入行(↓)</li>
-    <li data-type="InsertColumn">插入列(→)</li>
->>>>>>> 5705de59eb31f8146c4a840d783e2bc57eade539
     <li data-type="mergeTd">合并单元格</li>
   </ul>
 </template>
@@ -75,7 +68,3 @@ ul {
    position: fixed;
 }
 </style>
-<<<<<<< HEAD
-
-=======
->>>>>>> 5705de59eb31f8146c4a840d783e2bc57eade539

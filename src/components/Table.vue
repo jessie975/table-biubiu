@@ -24,7 +24,7 @@
               type="text"
               :data-x="item.x"
               :data-y="item.y"
-              :value="item.value"
+              :value="'('+item.x+','+item.y+')'"
               @input="inputAction"
             >
           </td>
@@ -47,7 +47,7 @@
 <script>
 import throttle from 'lodash.throttle'
 import Menu from './Menu'
-
+// :value="'('+item.x+','+item.y+')'"
 export default {
   name: 'Table',
   components: {
@@ -290,9 +290,9 @@ export default {
       const { from: fromY, to: toY } = this.position.y
       const { from: fromX, to: toX } = this.position.x
       const minY = Math.min(fromY, toY)
+      const maxY = Math.max(fromY, toY)
       const minX = Math.min(fromX, toX)
-      const rowspan = Math.abs(fromX - toX) + 1
-      const colspan = Math.abs(fromY - toY) + 1
+      const maxX = Math.max(fromX, toX)
       const mergeValue = []
 
       const { row, column } = this
@@ -301,13 +301,33 @@ export default {
         for (let col = 0; col < parseInt(column); col++) {
           // 被选中区域
           if (tableData[r][col].select) {
-            if (r === minX && col === minY) {
-              tableData[r][col].rowspan = rowspan
-              tableData[r][col].colspan = colspan
-              mergeValue.push(tableData[r][col].value)
+            // 被选中区域中包含已经合并过的单元格
+            if (tableData[r][col].rowspan !== 1 || tableData[r][col].colspan !== 1) {
+              console.log('包含合并')
+              const rowspan = tableData[r][col].rowspan
+              const colspan = tableData[r][col].colspan
+              for (let i = minX; i <= maxX + rowspan - 1; i++) {
+                for (let j = minY; j <= maxY + colspan - 1; j++) {
+                  if (i === minX && j === minY) {
+                    tableData[i][j].rowspan = rowspan + Math.abs(minX - maxX)
+                    tableData[i][j].colspan = colspan + Math.abs(minY - maxY)
+                  } else {
+                    tableData[i][j].isMerge = true
+                  }
+                }
+              }
+              return
             } else {
-              tableData[r][col].isMerge = true
-              mergeValue.push(tableData[r][col].value)
+              const rowspan = Math.abs(fromX - toX) + 1
+              const colspan = Math.abs(fromY - toY) + 1
+              if (r === minX && col === minY) {
+                tableData[r][col].rowspan = rowspan
+                tableData[r][col].colspan = colspan
+                mergeValue.push(tableData[r][col].value)
+              } else {
+                tableData[r][col].isMerge = true
+                mergeValue.push(tableData[r][col].value)
+              }
             }
           }
         }
@@ -337,14 +357,10 @@ export default {
         for (let col = 0; col < parseInt(column); col++) {
           let rowspanDefault = 1
           let colspanDefault = 1
-          // let xDefault = r
-          // let yDefault = col
           let isMerge = false
           if (tableData[r][col].colspan !== 1 || tableData[r][col].rowspan !== 1) {
             rowspanDefault = tableData[r][col].rowspan
             colspanDefault = tableData[r][col].colspan
-            // xDefault = tableData[r][col].x
-            // yDefault = tableData[r][col].y
           }
           if (tableData[r][col].isMerge) {
             isMerge = true
@@ -380,26 +396,48 @@ export default {
       for (let r = minX; r <= maxX; r++) {
         for (let col = minY; col <= maxY; col++) {
           if (this.tableData[r][col].colspan !== 1 || this.tableData[r][col].rowspan !== 1) {
-            console.log('包含合并')
+            // console.log('包含合并')
             const colspan = this.tableData[r][col].colspan
             const rowspan = this.tableData[r][col].rowspan
-            /**
+            if (xFrom === r && yFrom === col) {
+              console.log('起点是合并单元格')
+              /**
+               * 右下到左上
+               */
+              if ((x >= xTo && x <= xFrom + rowspan - 1) && (y >= yTo && y <= yFrom + colspan - 1)) {
+                return true
+              }
+              /**
+               * 右上到左下
+               */
+              if ((x >= xFrom && x <= xTo) && (y >= yTo && y <= yFrom + colspan - 1)) {
+                return true
+              }
+              /**
+               * 左下到右上
+               */
+              if ((x >= xTo && x <= xFrom + rowspan - 1) && (y >= yFrom && y <= yTo)) {
+                return true
+              }
+            } else {
+              /**
              * 左上到右下
              */
-            if ((x >= xFrom && x <= xTo + rowspan - 1) && (y >= yFrom && y <= yTo + colspan - 1)) {
-              return true
-            }
-            /**
+              if ((x >= xFrom && x <= xTo + rowspan - 1) && (y >= yFrom && y <= yTo + colspan - 1)) {
+                return true
+              }
+              /**
              * 左下到右上
              */
-            if ((x <= xFrom && x >= xTo) && (y >= yFrom && y <= yTo + colspan - 1)) {
-              return true
-            }
-            /**
+              if ((x <= xFrom && x >= xTo) && (y >= yFrom && y <= yTo + colspan - 1)) {
+                return true
+              }
+              /**
              * 右上 到 左下
              */
-            if ((x >= xFrom && x <= xTo + rowspan - 1) && (y <= yFrom && y >= yTo)) {
-              return true
+              if ((x >= xFrom && x <= xTo + rowspan - 1) && (y <= yFrom && y >= yTo)) {
+                return true
+              }
             }
           }
         }

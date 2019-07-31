@@ -24,7 +24,7 @@
               type="text"
               :data-x="item.x"
               :data-y="item.y"
-              :value="'('+item.x+','+item.y+')'"
+              :value="item.value"
               @input="inputAction"
             >
           </td>
@@ -293,6 +293,7 @@ export default {
       const minX = Math.min(fromX, toX)
       const rowspan = Math.abs(fromX - toX) + 1
       const colspan = Math.abs(fromY - toY) + 1
+      const mergeValue = []
 
       const { row, column } = this
       const tableData = this.tableData // 不做拷贝, 直接修改this.tableData // 因为修改的是数组的对象, 所以vue也能感知到数据变化
@@ -303,13 +304,15 @@ export default {
             if (r === minX && col === minY) {
               tableData[r][col].rowspan = rowspan
               tableData[r][col].colspan = colspan
+              mergeValue.push(tableData[r][col].value)
             } else {
               tableData[r][col].isMerge = true
+              mergeValue.push(tableData[r][col].value)
             }
           }
         }
       }
-      console.log(tableData)
+      this.tableData[minX][minY].value = String(mergeValue)
     },
     /**
      * 输入完成

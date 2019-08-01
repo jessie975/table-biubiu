@@ -74,7 +74,11 @@ export default {
         }
       },
       menuTop: -800,
-      menuLeft: -800
+      menuLeft: -800,
+      direction1: false, // 左上到右下
+      direction2: false, // 右上到左下
+      direction3: false, // 右下到左上
+      direction4: false // 左下到右上
     }
   },
   watch: {
@@ -294,40 +298,71 @@ export default {
       const minX = Math.min(fromX, toX)
       const maxX = Math.max(fromX, toX)
       const mergeValue = []
-
       const { row, column } = this
       const tableData = this.tableData // 不做拷贝, 直接修改this.tableData // 因为修改的是数组的对象, 所以vue也能感知到数据变化
       for (let r = 0; r < parseInt(row); r++) {
         for (let col = 0; col < parseInt(column); col++) {
           // 被选中区域
           if (tableData[r][col].select) {
+            // let rowspan = 1
+            // let colspan = 1
             // 被选中区域中包含已经合并过的单元格
             if (tableData[r][col].rowspan !== 1 || tableData[r][col].colspan !== 1) {
-              console.log('包含合并')
               const rowspan = tableData[r][col].rowspan
               const colspan = tableData[r][col].colspan
               for (let i = minX; i <= maxX + rowspan - 1; i++) {
                 for (let j = minY; j <= maxY + colspan - 1; j++) {
-                  if (i === minX && j === minY) {
-                    tableData[i][j].rowspan = rowspan + Math.abs(minX - maxX)
-                    tableData[i][j].colspan = colspan + Math.abs(minY - maxY)
-                  } else {
-                    tableData[i][j].isMerge = true
+                  console.log('TCL: mergeTd -> maxX + rowspan - 1', maxX + rowspan - 1)
+                  console.log('TCL: mergeTd -> maxY + colspan - 1', maxY + colspan - 1)
+                  if (this.direction1) {
+                    if (i === minX && j === minY) {
+                      tableData[i][j].rowspan = rowspan + Math.abs(minX - maxX)
+                      tableData[i][j].colspan = colspan + Math.abs(minY - maxY)
+                    } else {
+                      tableData[i][j].isMerge = true
+                    }
+                  } else if (this.direction2) {
+                    if (j !== maxY + colspan - 1) {
+                      if (i === minX && j === minY) {
+                        tableData[i][j].rowspan = rowspan + Math.abs(fromX - toX)
+                        tableData[i][j].colspan = colspan + Math.abs(fromY - toY) - 1
+                      } else {
+                        tableData[i][j].isMerge = true
+                      }
+                    }
+                  } else if (this.direction3) {
+                    if (j !== maxY + colspan - 1) {
+                      if (i === minX && j === minY) {
+                        tableData[i][j].rowspan = rowspan + Math.abs(fromX - toX) - 1
+                        tableData[i][j].colspan = colspan + Math.abs(fromY - toY) - 1
+                      } else {
+                        if (i !== maxX + rowspan - 1) {
+                          tableData[i][j].isMerge = true
+                        }
+                      }
+                    }
+                  } else if (this.direction4) {
+                    if (i === minX && j === minY) {
+                      tableData[i][j].rowspan = rowspan + Math.abs(fromX - toX) - 1
+                      tableData[i][j].colspan = colspan + Math.abs(fromY - toY)
+                    } else {
+                      if (i !== maxX + rowspan - 1) {
+                        tableData[i][j].isMerge = true
+                      }
+                    }
                   }
                 }
               }
               return
+            }
+            // 被选中区域不包含合并的单元格
+            if (r === minX && col === minY) {
+              tableData[r][col].rowspan = Math.abs(fromX - toX) + 1
+              tableData[r][col].colspan = Math.abs(fromY - toY) + 1
+              mergeValue.push(tableData[r][col].value)
             } else {
-              const rowspan = Math.abs(fromX - toX) + 1
-              const colspan = Math.abs(fromY - toY) + 1
-              if (r === minX && col === minY) {
-                tableData[r][col].rowspan = rowspan
-                tableData[r][col].colspan = colspan
-                mergeValue.push(tableData[r][col].value)
-              } else {
-                tableData[r][col].isMerge = true
-                mergeValue.push(tableData[r][col].value)
-              }
+              tableData[r][col].isMerge = true
+              mergeValue.push(tableData[r][col].value)
             }
           }
         }
@@ -424,18 +459,21 @@ export default {
              * 左上到右下
              */
               if ((x >= xFrom && x <= xTo + rowspan - 1) && (y >= yFrom && y <= yTo + colspan - 1)) {
+                this.direction1 = true
                 return true
               }
               /**
              * 左下到右上
              */
               if ((x <= xFrom && x >= xTo) && (y >= yFrom && y <= yTo + colspan - 1)) {
+                this.direction4 = true
                 return true
               }
               /**
              * 右上 到 左下
              */
               if ((x >= xFrom && x <= xTo + rowspan - 1) && (y <= yFrom && y >= yTo)) {
+                this.direction2 = true
                 return true
               }
             }
@@ -452,6 +490,7 @@ export default {
        * 右下到左上
        */
       if (x <= xFrom && x >= xTo && (y <= yFrom && y >= yTo)) {
+        this.direction3 = true
         return true
       }
       /**

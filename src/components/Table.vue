@@ -24,7 +24,7 @@
               type="text"
               :data-x="item.x"
               :data-y="item.y"
-              :value="item.value"
+              :value="item.x+'|'+item.y"
               @input="inputAction"
             >
           </td>
@@ -294,6 +294,8 @@ export default {
       const selectRow = []
       const selectColumn = []
       const mergeValue = []
+      const mergeX = []
+      const mergeY = []
       const { row, column } = this
       const tableData = this.tableData // 不做拷贝, 直接修改this.tableData // 因为修改的是数组的对象, 所以vue也能感知到数据变化
       for (let r = 0; r < parseInt(row); r++) {
@@ -319,9 +321,13 @@ export default {
             tableData[i][j].isMerge = true
           }
           mergeValue.push(tableData[i][j].value)
+          mergeX.push(tableData[i][j].x)
+          mergeY.push(tableData[i][j].y)
         }
       }
       this.tableData[minX][minY].value = String(mergeValue)
+      this.tableData[minX][minY].x = [...new Set(mergeX)]
+      this.tableData[minX][minY].y = [...new Set(mergeY)]
     },
     /**
      * 输入完成
@@ -357,8 +363,8 @@ export default {
           const select = this.inRange(r, col)
           const obj = {
             value: this.tableData[r][col].value,
-            x: r,
-            y: col,
+            x: this.tableData[r][col].x,
+            y: this.tableData[r][col].y,
             select,
             rowspan: rowspanDefault,
             colspan: colspanDefault,

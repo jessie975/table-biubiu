@@ -359,11 +359,12 @@ export default {
             if (r === minX && col === minY) {
               tableData[r][col].rowspan = Math.abs(fromX - toX) + 1
               tableData[r][col].colspan = Math.abs(fromY - toY) + 1
-              mergeValue.push(tableData[r][col].value)
+              // mergeValue.push(tableData[r][col].value)
             } else {
               tableData[r][col].isMerge = true
-              mergeValue.push(tableData[r][col].value)
+              // mergeValue.push(tableData[r][col].value)
             }
+            mergeValue.push(tableData[r][col].value)
           }
         }
       }

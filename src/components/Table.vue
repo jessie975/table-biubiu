@@ -74,11 +74,7 @@ export default {
         }
       },
       menuTop: -800,
-      menuLeft: -800,
-      direction1: false, // 左上到右下
-      direction2: false, // 右上到左下
-      direction3: false, // 右下到左上
-      direction4: false // 左下到右上
+      menuLeft: -800
     }
   },
   watch: {
@@ -168,16 +164,17 @@ export default {
     downAction(event) {
       this.mouseFlag = true
       const { x, y } = event.target.dataset
-      this.position.x.from = parseInt(x)
-      this.position.y.from = parseInt(y)
-      this.position.x.to = parseInt(x)
-      this.position.y.to = parseInt(y)
+      this.position.x.from = x
+      this.position.y.from = y
+      this.position.x.to = x
+      this.position.y.to = y
+      // console.log(`${this.position.x.to},${this.position.y.to}`)
     },
     moveAction: throttle(function(event) {
       if (this.mouseFlag) {
         const { x, y } = event.target.dataset
-        this.position.x.to = parseInt(x)
-        this.position.y.to = parseInt(y)
+        this.position.x.to = x
+        this.position.y.to = y
       }
     }, 100),
     upAction() {
@@ -381,91 +378,47 @@ export default {
         x: { from: xFrom, to: xTo },
         y: { from: yFrom, to: yTo }
       } = this.position
-      /**
-       * 选中的单元格中包含合并后的单元格的选中区域
-       */
-      const minX = Math.min(xFrom, xTo)
-      const minY = Math.min(yFrom, yTo)
-      const maxX = Math.max(xFrom, xTo)
-      const maxY = Math.max(yFrom, yTo)
-      for (let r = minX; r <= maxX; r++) {
-        for (let col = minY; col <= maxY; col++) {
-          if (this.tableData[r][col].colspan !== 1 || this.tableData[r][col].rowspan !== 1) {
-            // console.log('包含合并')
-            const colspan = this.tableData[r][col].colspan
-            const rowspan = this.tableData[r][col].rowspan
-            if (xFrom === r && yFrom === col) {
-              console.log('起点是合并单元格')
-              /**
-               * 右下到左上
-               */
-              if ((x >= xTo && x <= xFrom + rowspan - 1) && (y >= yTo && y <= yFrom + colspan - 1)) {
+
+      // console.log(Object.prototype.toString.call(xFrom))
+      xFrom.replace(/,/g, '').split('')
+      xTo.replace(/,/g, '').split('')
+      yFrom.replace(/,/g, '').split('')
+      yTo.replace(/,/g, '').split('')
+      // console.log(xFrom.replace(/,/g, '').split(''))
+      for (let xf = 0; xf < xFrom.length; xf++) {
+        for (let xt = 0; xt < xTo.length; xt++) {
+          for (let yf = 0; yf < yFrom.length; yf++) {
+            for (let yt = 0; yt < yTo.length; yt++) {
+              if (x >= xFrom[xf] && x <= xTo[xt] && (y >= yFrom[yf] && y <= yTo[yt])) {
+                /**
+                 * 左上到右下
+                 */
                 return true
-              }
-              /**
-               * 右上到左下
-               */
-              if ((x >= xFrom && x <= xTo) && (y >= yTo && y <= yFrom + colspan - 1)) {
+              } else if (x <= xFrom[xf] && x >= xTo[xt] && (y >= yFrom[yf] && y <= yTo[yt])) {
+                /**
+                 * 左下到右上
+                 */
                 return true
-              }
-              /**
-               * 左下到右上
-               */
-              if ((x >= xTo && x <= xFrom + rowspan - 1) && (y >= yFrom && y <= yTo)) {
+              } else if (x >= xFrom[xf] && x <= xTo[xt] && (y <= yFrom[yf] && y >= yTo[yt])) {
+                /**
+                 * 右上 到 左下
+                 */
                 return true
-              }
-            } else {
-              /**
-             * 左上到右下
-             */
-              if ((x >= xFrom && x <= xTo + rowspan - 1) && (y >= yFrom && y <= yTo + colspan - 1)) {
-                this.direction1 = true
-                return true
-              }
-              /**
-             * 左下到右上
-             */
-              if ((x <= xFrom && x >= xTo) && (y >= yFrom && y <= yTo + colspan - 1)) {
-                this.direction4 = true
-                return true
-              }
-              /**
-             * 右上 到 左下
-             */
-              if ((x >= xFrom && x <= xTo + rowspan - 1) && (y <= yFrom && y >= yTo)) {
-                this.direction2 = true
-                return true
+              } else {
+                false
               }
             }
           }
         }
       }
-      /**
-       * 左上到右下
-       */
-      if (x >= xFrom && x <= xTo && (y >= yFrom && y <= yTo)) {
-        return true
-      }
+
+      // 以上方法对右下到左上方向不正确
       /**
        * 右下到左上
        */
-      if (x <= xFrom && x >= xTo && (y <= yFrom && y >= yTo)) {
-        this.direction3 = true
+      if (x <= xFrom[0] && x >= xTo[0] && (y <= yFrom[0] && y >= yTo[0])) {
         return true
       }
-      /**
-       * 左下到右上
-       */
-      if (x <= xFrom && x >= xTo && (y >= yFrom && y <= yTo)) {
-        return true
-      }
-      /**
-       * 右上 到 左下
-       */
-      if (x >= xFrom && x <= xTo && (y <= yFrom && y >= yTo)) {
-        return true
-      }
-      return false
     }
   }
 }

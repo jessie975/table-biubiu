@@ -1,6 +1,9 @@
 <template>
   <div id="app">
-    <Table />
+    行：<input v-model="rowNumber" type="number">
+    列：<input v-model="columnNumber" type="number">
+    <button @click="handelClick">创建</button>
+    <Table ref="table" :row="Number(rowNumber)" :column="Number(columnNumber)" />
   </div>
 </template>
 
@@ -11,6 +14,17 @@ export default {
   name: 'App',
   components: {
     Table
+  },
+  data() {
+    return {
+      rowNumber: '',
+      columnNumber: ''
+    }
+  },
+  methods: {
+    handelClick() {
+      this.$refs.table.initTable()
+    }
   }
 }
 </script>

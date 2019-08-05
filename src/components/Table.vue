@@ -1,7 +1,7 @@
 <template>
   <div>
     <table
-      id="table"
+      ref="table"
       @mousedown.left="downAction"
       @mousedown.right="downActionOnce"
       @mouseup.left="upAction"
@@ -32,7 +32,7 @@
     </table>
     <Menu
       v-show="showMenu"
-      id="menu"
+      ref="menu"
       :top="menuTop"
       :left="menuLeft"
       :show-menu="showMenu"
@@ -54,11 +54,21 @@ export default {
   components: {
     Menu
   },
+  props: {
+    row: {
+      type: Number,
+      default: 10,
+      require: true
+    },
+    column: {
+      type: Number,
+      default: 10,
+      require: true
+    }
+  },
   data() {
     return {
       tableData: [],
-      row: 10,
-      column: 10,
       mouseFlag: false,
       /**
        * 选中的坐标
@@ -89,10 +99,15 @@ export default {
       },
       immediate: true,
       deep: true
+    },
+    row: {
+      handler(newName, oldName) {
+        console.log('TCL: handler -> newName', newName)
+      }
     }
   },
   created() {
-    this.tableData = this.initTable()
+    this.initTable()
   },
   mounted() {
     document.addEventListener('click', this.handlerClose)
@@ -110,12 +125,12 @@ export default {
       return false
     },
     handlerClose(event) {
-      if (!document.getElementById('menu').contains(event.target)) {
+      if (!this.$refs.menu.$el.contains(event.target)) {
         this.showMenu = false
       }
       if (
-        document.getElementById('table').contains(event.target) ||
-        document.getElementById('menu').contains(event.target)
+        this.$refs.table.contains(event.target) ||
+        this.$refs.menu.$el.contains(event.target)
       ) {
         return ''
       }
@@ -124,6 +139,7 @@ export default {
      * 初始化表格
      */
     initTable() {
+      debugger
       const { row, column } = this
       const tableData = []
       for (let r = 0; r < parseInt(row); r++) {
@@ -142,7 +158,7 @@ export default {
         }
         tableData.push(arr)
       }
-      return tableData
+      this.tableData = tableData
     },
     updataXY() {
       const { x, y } = event.target.dataset
@@ -185,8 +201,27 @@ export default {
       } = this.position
       const maxX = Math.max(xFrom, xTo)
       const newRow = []
+      let XX = []
+      let YY = []
+      let isMerge = false
+      for (let r = 0; r < this.beMergeCell.length; r++) {
+        XX.push(this.beMergeCell[r].x)
+        YY.push(this.beMergeCell[r].y)
+      }
+      XX = [...new Set(XX)]
+      YY = [...new Set(YY)]
+      console.log('TCL: insertRow -> XX', XX)
+      console.log('TCL: insertRow -> YY', YY)
+      for (let col = 0; col < parseInt(column); col++) {
+        // 插入位置的列中包含合并，则不显示
+        if (XX.indexOf(maxX) !== -1) {
+          if (YY.indexOf(col) > -1) {
+            isMerge = true
+          } else {
+            isMerge = false
+          }
+        }
 
-      for (let col = 0; col < column; col++) {
         const newCell = {
           value: '',
           x: maxX + 1,
@@ -194,18 +229,25 @@ export default {
           __select: false,
           rowspan: 1,
           colspan: 1,
-          isMerge: false
+          isMerge
         }
         newRow.push(newCell)
       }
       this.tableData.splice(maxX + 1, 0, newRow)
+      // // 更新合并单元格的rowspan
+      if (this.beMergeCell.length !== 0) {
+        const xxx = this.beMergeCell[0].x
+        const yyy = this.beMergeCell[0].y - 1
+        this.tableData[xxx][yyy].rowspan += 1
+        return
+      }
       this.row = row + 1
     },
     insertColumn(event) {
       const { row, column } = this
       const { from, to } = this.position.y
       const max = Math.max(from, to)
-      for (let r = 0; r < row; r++) {
+      for (let r = 0; r < parseInt(row); r++) {
         const newCell = {
           value: '',
           x: r,
@@ -239,8 +281,8 @@ export default {
       let minY
       let maxX
       let maxY
-      for (let r = 0; r < row; r++) {
-        for (let col = 0; col < column; col++) {
+      for (let r = 0; r < parseInt(row); r++) {
+        for (let col = 0; col < parseInt(column); col++) {
           // 被选中区域
           if (tableData[r][col].__select) {
             if (typeof (minX) === 'undefined') {
@@ -275,7 +317,6 @@ export default {
           mergeValue.push(tableData[i][j].value)
         }
       }
-
       this.tableData[minX][minY].value = String(mergeValue)
     },
     /**
@@ -294,9 +335,9 @@ export default {
     makeTableData() {
       const tableData = [...this.tableData]
       const { row, column } = this
-      for (let r = 0; r < row; r++) {
+      for (let r = 0; r < parseInt(row); r++) {
         const arr = []
-        for (let col = 0; col < column; col++) {
+        for (let col = 0; col < parseInt(column); col++) {
           let rowspanDefault = 1
           let colspanDefault = 1
           let isMerge = false
@@ -370,7 +411,6 @@ table tr {
   border: 1px solid #ccc;
   color: #666;
   height: 30px;
-  user-__select: none;
   overflow: hidden;
 }
 table td {

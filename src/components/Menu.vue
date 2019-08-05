@@ -1,7 +1,7 @@
 <template>
-  <ul :style="{top: menuTop+'px', left: menuLeft +'px'}" @click="handelClick">
-    <li data-type="InsertRow">插入行(↓)</li>
-    <li data-type="InsertColumn">插入列(→)</li>
+  <ul v-show="menuShow" :style="{top: top+'px', left: left +'px'}" @click="handelClick">
+    <li data-type="insertRow">插入行(↓)</li>
+    <li data-type="insertColumn">插入列(→)</li>
     <li data-type="deleteRow">删除行</li>
     <li data-type="deleteColumn">删除列</li>
     <li data-type="mergeTd">合并单元格</li>
@@ -19,28 +19,27 @@ export default {
     left: {
       type: Number,
       required: true
+    },
+    showMenu: {
+      type: Boolean,
+      required: true
     }
   },
   data() {
     return {
-      menuTop: this.top,
-      menuLeft: this.left
+      menuShow: this.showMenu
     }
   },
   watch: {
-    top(value) {
-      this.menuTop = value
-    },
-    left(value) {
-      this.menuLeft = value
+    showMenu(value) {
+      this.menuShow = value
     }
   },
   methods: {
     handelClick(event) {
       const { type } = event.target.dataset
-      this.$emit(type)
-      this.menuTop = -800
-      this.menuLeft = -800
+      this.menuShow = !this.menuShow
+      this.$emit(type, this.showMenu)
     }
   }
 }

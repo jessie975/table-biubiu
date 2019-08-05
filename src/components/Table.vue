@@ -3,9 +3,8 @@
     <table
       id="table"
       @mousedown.left="downAction"
-      @mousedown.right="downActionOnece"
+      @mousedown.right="downActionOnce"
       @mouseup.left="upAction"
-      @mouseleave="upAction"
       @contextmenu="menuShow"
     >
       <tr v-for="(r,index) in tableData" :key="index">
@@ -24,7 +23,7 @@
               type="text"
               :data-x="item.x"
               :data-y="item.y"
-              :value="item.x+'|'+item.y"
+              :value="'('+item.x+','+item.y+')'"
               @input="inputAction"
             >
           </td>
@@ -32,13 +31,15 @@
       </tr>
     </table>
     <Menu
+      v-show="showMenu"
       id="menu"
       :top="menuTop"
       :left="menuLeft"
+      :show-menu="showMenu"
       @deleteRow="deleteRow"
-      @InsertColumn="InsertColumn"
+      @insertColumn="insertColumn"
       @deleteColumn="deleteColumn"
-      @InsertRow="InsertRow"
+      @insertRow="insertRow"
       @mergeTd="mergeTd"
     />
   </div>
@@ -55,11 +56,10 @@ export default {
   },
   data() {
     return {
-      tableData: [], // colspan rowspan value x y // onmousedown onmousemove onmouseup
-      row: '10',
-      column: '10',
+      tableData: [],
+      row: 10,
+      column: 10,
       mouseFlag: false,
-      mouseInMergeCell: false,
       /**
        * 选中的坐标
        */
@@ -73,8 +73,9 @@ export default {
           to: -1
         }
       },
-      menuTop: -800,
-      menuLeft: -800
+      menuTop: 0,
+      menuLeft: 0,
+      showMenu: false
     }
   },
   watch: {
@@ -100,15 +101,16 @@ export default {
   },
   methods: {
     menuShow(event) {
-      this.menuTop = event.clientY
-      this.menuLeft = event.clientX
+      const { clientX, clientY } = event
+      this.menuTop = clientY
+      this.menuLeft = clientX
+      this.showMenu = !this.showMenu
       event.preventDefault()
       return false
     },
     handlerClose(event) {
       if (!document.getElementById('menu').contains(event.target)) {
-        this.menuTop = -800
-        this.menuLeft = -800
+        this.showMenu = false
       }
       if (
         document.getElementById('table').contains(event.target) ||
@@ -145,135 +147,87 @@ export default {
       }
       return tableData
     },
+    updataXY() {
+      const { x, y } = event.target.dataset
+      this.position.x.from = parseInt(x)
+      this.position.y.from = parseInt(y)
+      this.position.x.to = parseInt(x)
+      this.position.y.to = parseInt(y)
+    },
     /**
      * 点击右键之后直接修改选中区域
      */
-    downActionOnece(event) {
-      // 如果选择的区域不是一块
+    downActionOnce(event) {
+      // 如果选择的区域不是一个单元格，在其他地方点击右键则不选中
       if (
         this.position.x.from - this.position.x.to !== 0 ||
         this.position.y.from - this.position.y.to !== 0
       ) {
         return
       }
-      this.position.x.from = parseInt(event.target.dataset.x)
-      this.position.y.from = parseInt(event.target.dataset.y)
-      this.position.x.to = parseInt(event.target.dataset.x)
-      this.position.y.to = parseInt(event.target.dataset.y)
+      this.updataXY()
     },
     downAction(event) {
       this.mouseFlag = true
-      const { x, y } = event.target.dataset
-      this.position.x.from = x
-      this.position.y.from = y
-      this.position.x.to = x
-      this.position.y.to = y
-      // console.log(`${this.position.x.to},${this.position.y.to}`)
+      this.updataXY()
     },
     moveAction: throttle(function(event) {
       if (this.mouseFlag) {
         const { x, y } = event.target.dataset
-        this.position.x.to = x
-        this.position.y.to = y
+        this.position.x.to = parseInt(x)
+        this.position.y.to = parseInt(y)
       }
     }, 100),
     upAction() {
       this.mouseFlag = false
     },
-    InsertRow() {
-      const { from, to } = this.position.x
-      const max = Math.max(from, to)
-      const tableData = []
-      const column = parseInt(this.column)
-      for (let r = 0; r <= max + 1; r++) {
-        const arr = []
-        for (let col = 0; col < parseInt(column); col++) {
-          let rowspanDefault = 1
-          let colspanDefault = 1
-          let isMerge = false
-          if (this.tableData[r][col].colspan !== 1 || this.tableData[r][col].rowspan !== 1) {
-            // debugger
-            rowspanDefault = this.tableData[r][col].rowspan
-            colspanDefault = this.tableData[r][col].colspan
+    insertRow() {
+      const { row, column } = this
+      const {
+        x: { from: xFrom, to: xTo },
+        y: { from: yFrom, to: yTo }
+      } = this.position
+      const minX = Math.min(xFrom, xTo)
+      const maxX = Math.max(xFrom, xTo)
+      const newRow = []
+
+      for (let i = minX; i < maxX; i++) {
+        for (let col = 0; col < column; col++) {
+          if (this.tableData[i][col].rowspan !== 1 || this.tableData[i][col].colspan !== 1) {
+            console.log('包含合并')
           }
-          if (this.tableData[r][col].isMerge) {
-            isMerge = true
-          }
-          const select = this.inRange(r, col)
-          let value = ''
-          if (r === max + 1) {
-            value = ''
-          } else {
-            value = this.tableData[r][col].value
-          }
-          const obj = {
-            value,
-            x: r,
+          const newCell = {
+            value: '',
+            x: maxX + 1,
             y: col,
-            select,
-            rowspan: rowspanDefault,
-            colspan: colspanDefault,
-            isMerge
+            select: false,
+            rowspan: 1,
+            colspan: 1,
+            isMerge: false
           }
-          arr.push(obj)
+          newRow.push(newCell)
         }
-        tableData[r] = arr
       }
-      const backArr = this.tableData.slice(max + 1)
-      this.tableData = tableData.concat(backArr)
-      this.row = parseInt(this.row) + 1
+      this.tableData.splice(maxX + 1, 0, newRow)
+      this.row = row + 1
     },
-    InsertColumn(event) {
+    insertColumn(event) {
       const { row, column } = this
       const { from, to } = this.position.y
       const max = Math.max(from, to)
-      const tableData = []
       for (let r = 0; r < row; r++) {
-        const arr = []
-        const column = this.tableData[r].length
-        for (let col = 0; col <= parseInt(column); col++) {
-          let rowspanDefault = 1
-          let colspanDefault = 1
-          let isMerge = false
-          // 新列没有rowspan和colspan
-          if (col < parseInt(column)) {
-            if (this.tableData[r][col].colspan !== 1 || this.tableData[r][col].rowspan !== 1) {
-              rowspanDefault = this.tableData[r][col].rowspan
-              colspanDefault = this.tableData[r][col].colspan
-            }
-            if (this.tableData[r][col].isMerge) {
-              isMerge = true
-            }
-          }
-
-          const select = this.inRange(r, col)
-          let value = ''
-          if (col === max + 1) {
-            // 最新插入的列
-            value = ''
-          } else {
-            if (col <= max) {
-              // 插入列所在的前面的列
-              value = this.tableData[r][col].value
-            } else {
-              value = this.tableData[r][col - 1].value
-            }
-          }
-          const obj = {
-            value,
-            x: r,
-            y: col,
-            select,
-            rowspan: rowspanDefault,
-            colspan: colspanDefault,
-            isMerge
-          }
-          arr.push(obj)
+        const newCell = {
+          value: '',
+          x: r,
+          y: max,
+          select: false,
+          rowspan: 1,
+          colspan: 1,
+          isMerge: false
         }
-        tableData[r] = arr
+        this.tableData[r].splice(max + 1, 0, newCell)
       }
-      this.tableData = tableData
-      this.column = parseInt(column) + 1
+      this.column = column + 1
     },
     deleteRow() {
       const { from, to } = this.position.x
@@ -288,26 +242,36 @@ export default {
       })
     },
     mergeTd() {
-      const selectRow = []
-      const selectColumn = []
       const mergeValue = []
-      const mergeX = []
-      const mergeY = []
       const { row, column } = this
       const tableData = this.tableData // 不做拷贝, 直接修改this.tableData // 因为修改的是数组的对象, 所以vue也能感知到数据变化
-      for (let r = 0; r < parseInt(row); r++) {
-        for (let col = 0; col < parseInt(column); col++) {
+      let minX
+      let minY
+      let maxX
+      let maxY
+      for (let r = 0; r < row; r++) {
+        for (let col = 0; col < column; col++) {
           // 被选中区域
           if (tableData[r][col].select) {
-            selectRow.push(r)
-            selectColumn.push(col)
+            if (typeof (minX) === 'undefined') {
+              minX = r
+            }
+            if (typeof (maxX) === 'undefined') {
+              maxX = r
+            }
+            if (typeof (minY) === 'undefined') {
+              minY = col
+            }
+            if (typeof (maxY) === 'undefined') {
+              maxY = col
+            }
+            minX = minX > r ? r : minX
+            minY = minY > col ? col : minY
+            maxX = maxX > r ? maxX : r
+            maxY = maxY > col ? maxY : col
           }
         }
       }
-      const minX = Math.min.apply(null, selectRow)
-      const minY = Math.min.apply(null, selectColumn)
-      const maxX = Math.max.apply(null, selectRow)
-      const maxY = Math.max.apply(null, selectColumn)
 
       for (let i = minX; i <= maxX; i++) {
         for (let j = minY; j <= maxY; j++) {
@@ -318,13 +282,9 @@ export default {
             tableData[i][j].isMerge = true
           }
           mergeValue.push(tableData[i][j].value)
-          mergeX.push(tableData[i][j].x)
-          mergeY.push(tableData[i][j].y)
         }
       }
       this.tableData[minX][minY].value = String(mergeValue)
-      this.tableData[minX][minY].x = [...new Set(mergeX)]
-      this.tableData[minX][minY].y = [...new Set(mergeY)]
     },
     /**
      * 输入完成
@@ -342,11 +302,10 @@ export default {
     makeTableData() {
       const tableData = [...this.tableData]
       const row = tableData.length
-
-      for (let r = 0; r < parseInt(row); r++) {
+      for (let r = 0; r < row; r++) {
         const arr = []
         const column = tableData[r].length
-        for (let col = 0; col < parseInt(column); col++) {
+        for (let col = 0; col < column; col++) {
           let rowspanDefault = 1
           let colspanDefault = 1
           let isMerge = false
@@ -360,8 +319,8 @@ export default {
           const select = this.inRange(r, col)
           const obj = {
             value: this.tableData[r][col].value,
-            x: this.tableData[r][col].x,
-            y: this.tableData[r][col].y,
+            x: r,
+            y: col,
             select,
             rowspan: rowspanDefault,
             colspan: colspanDefault,
@@ -378,47 +337,91 @@ export default {
         x: { from: xFrom, to: xTo },
         y: { from: yFrom, to: yTo }
       } = this.position
-
-      // console.log(Object.prototype.toString.call(xFrom))
-      xFrom.replace(/,/g, '').split('')
-      xTo.replace(/,/g, '').split('')
-      yFrom.replace(/,/g, '').split('')
-      yTo.replace(/,/g, '').split('')
-      // console.log(xFrom.replace(/,/g, '').split(''))
-      for (let xf = 0; xf < xFrom.length; xf++) {
-        for (let xt = 0; xt < xTo.length; xt++) {
-          for (let yf = 0; yf < yFrom.length; yf++) {
-            for (let yt = 0; yt < yTo.length; yt++) {
-              if (x >= xFrom[xf] && x <= xTo[xt] && (y >= yFrom[yf] && y <= yTo[yt])) {
-                /**
-                 * 左上到右下
-                 */
+      /**
+       * 选中的单元格中包含合并后的单元格的选中区域
+       */
+      const minX = Math.min(xFrom, xTo)
+      const minY = Math.min(yFrom, yTo)
+      const maxX = Math.max(xFrom, xTo)
+      const maxY = Math.max(yFrom, yTo)
+      for (let r = minX; r <= maxX; r++) {
+        for (let col = minY; col <= maxY; col++) {
+          if (this.tableData[r][col].colspan !== 1 || this.tableData[r][col].rowspan !== 1) {
+            // console.log('包含合并')
+            const colspan = this.tableData[r][col].colspan
+            const rowspan = this.tableData[r][col].rowspan
+            if (xFrom === r && yFrom === col) {
+              console.log('起点是合并单元格')
+              /**
+               * 右下到左上
+               */
+              if ((x >= xTo && x <= xFrom + rowspan - 1) && (y >= yTo && y <= yFrom + colspan - 1)) {
                 return true
-              } else if (x <= xFrom[xf] && x >= xTo[xt] && (y >= yFrom[yf] && y <= yTo[yt])) {
-                /**
-                 * 左下到右上
-                 */
+              }
+              /**
+               * 右上到左下
+               */
+              if ((x >= xFrom && x <= xTo) && (y >= yTo && y <= yFrom + colspan - 1)) {
                 return true
-              } else if (x >= xFrom[xf] && x <= xTo[xt] && (y <= yFrom[yf] && y >= yTo[yt])) {
-                /**
-                 * 右上 到 左下
-                 */
+              }
+              /**
+               * 左下到右上
+               */
+              if ((x >= xTo && x <= xFrom + rowspan - 1) && (y >= yFrom && y <= yTo)) {
                 return true
-              } else {
-                false
+              }
+            } else {
+              /**
+             * 左上到右下
+             */
+              if ((x >= xFrom && x <= xTo + rowspan - 1) && (y >= yFrom && y <= yTo + colspan - 1)) {
+                this.direction1 = true
+                return true
+              }
+              /**
+             * 左下到右上
+             */
+              if ((x <= xFrom && x >= xTo) && (y >= yFrom && y <= yTo + colspan - 1)) {
+                this.direction4 = true
+                return true
+              }
+              /**
+             * 右上 到 左下
+             */
+              if ((x >= xFrom && x <= xTo + rowspan - 1) && (y <= yFrom && y >= yTo)) {
+                this.direction2 = true
+                return true
               }
             }
           }
         }
       }
-
-      // 以上方法对右下到左上方向不正确
+      /**
+       * 左上到右下
+       */
+      if (x >= xFrom && x <= xTo && (y >= yFrom && y <= yTo)) {
+        return true
+      }
       /**
        * 右下到左上
        */
-      if (x <= xFrom[0] && x >= xTo[0] && (y <= yFrom[0] && y >= yTo[0])) {
+      if (x <= xFrom && x >= xTo && (y <= yFrom && y >= yTo)) {
+        this.direction3 = true
         return true
       }
+      /**
+       * 左下到右上
+       */
+      if (x <= xFrom && x >= xTo && (y >= yFrom && y <= yTo)) {
+        return true
+      }
+      /**
+       * 右上 到 左下
+       */
+      if (x >= xFrom && x <= xTo && (y <= yFrom && y >= yTo)) {
+        return true
+      }
+      return false
     }
   }
 }
@@ -468,4 +471,3 @@ table td:hover{
   background:rgba(202,217,234,0.5);
 }
 </style>
-

@@ -14,7 +14,7 @@
             :key="tdIndex"
             :data-x="item.x"
             :data-y="item.y"
-            :class="[item.select ? 'select' : '']"
+            :class="[item.__select ? '__select' : '']"
             :rowspan="item.rowspan"
             :colspan="item.colspan"
             @mousemove="moveAction"
@@ -75,12 +75,13 @@ export default {
       },
       menuTop: 0,
       menuLeft: 0,
-      showMenu: false
+      showMenu: false,
+      beMergeCell: []
     }
   },
   watch: {
     position: {
-      handler: function(newName, oldName) {
+      handler(newName, oldName) {
         if (typeof (oldName) === 'undefined') {
           return
         }
@@ -118,10 +119,6 @@ export default {
       ) {
         return ''
       }
-      this.position.x.from = -1
-      this.position.y.from = -1
-      this.position.x.to = -1
-      this.position.y.to = -1
     },
     /**
      * 初始化表格
@@ -136,7 +133,7 @@ export default {
             value: `(${r},${col})`,
             x: r,
             y: col,
-            select: false,
+            __select: false,
             rowspan: 1,
             colspan: 1,
             isMerge: false
@@ -184,10 +181,8 @@ export default {
     insertRow() {
       const { row, column } = this
       const {
-        x: { from: xFrom, to: xTo },
-        y: { from: yFrom, to: yTo }
+        x: { from: xFrom, to: xTo }
       } = this.position
-      const minX = Math.min(xFrom, xTo)
       const maxX = Math.max(xFrom, xTo)
       const newRow = []
 
@@ -196,7 +191,7 @@ export default {
           value: '',
           x: maxX + 1,
           y: col,
-          select: false,
+          __select: false,
           rowspan: 1,
           colspan: 1,
           isMerge: false
@@ -215,7 +210,7 @@ export default {
           value: '',
           x: r,
           y: max,
-          select: false,
+          __select: false,
           rowspan: 1,
           colspan: 1,
           isMerge: false
@@ -247,7 +242,7 @@ export default {
       for (let r = 0; r < row; r++) {
         for (let col = 0; col < column; col++) {
           // 被选中区域
-          if (tableData[r][col].select) {
+          if (tableData[r][col].__select) {
             if (typeof (minX) === 'undefined') {
               minX = r
             }
@@ -275,10 +270,12 @@ export default {
             tableData[i][j].colspan = Math.abs(maxY - minY) + 1
           } else {
             tableData[i][j].isMerge = true
+            this.beMergeCell.push(tableData[i][j])
           }
           mergeValue.push(tableData[i][j].value)
         }
       }
+
       this.tableData[minX][minY].value = String(mergeValue)
     },
     /**
@@ -296,10 +293,9 @@ export default {
      */
     makeTableData() {
       const tableData = [...this.tableData]
-      const row = tableData.length
+      const { row, column } = this
       for (let r = 0; r < row; r++) {
         const arr = []
-        const column = tableData[r].length
         for (let col = 0; col < column; col++) {
           let rowspanDefault = 1
           let colspanDefault = 1
@@ -311,12 +307,12 @@ export default {
           if (tableData[r][col].isMerge) {
             isMerge = true
           }
-          const select = this.inRange(r, col)
+          const __select = this.inRange(r, col)
           const obj = {
             value: this.tableData[r][col].value,
             x: r,
             y: col,
-            select,
+            __select,
             rowspan: rowspanDefault,
             colspan: colspanDefault,
             isMerge
@@ -342,6 +338,11 @@ export default {
       const minYY = Math.min(yFrom, yTo)
       const maxXX = Math.max(maxXStart, maxXEnd)
       const maxYY = Math.max(maxYStart, maxYEnd)
+
+      // const beMergeCellMaxX = Math.max.apply(Math, this.beMergeCell.map(function(o) { return o.x }))
+      // const beMergeCellMaxY = Math.max.apply(Math, this.beMergeCell.map(function(o) { return o.y }))
+      // const beMergeCellMinX = Math.min.apply(Math, this.beMergeCell.map(function(o) { return o.x }))
+      // const beMergeCellMinY = Math.min.apply(Math, this.beMergeCell.map(function(o) { return o.y }))
 
       if ((x >= minXX && x <= maxXX) && (y >= minYY && y <= maxYY)) {
         return true
@@ -369,7 +370,7 @@ table tr {
   border: 1px solid #ccc;
   color: #666;
   height: 30px;
-  user-select: none;
+  user-__select: none;
   overflow: hidden;
 }
 table td {
@@ -392,7 +393,7 @@ table td input{
 table td:hover{
   box-shadow: 0px 0px 10px 1px rgba(164, 232, 227, 0.2);
 }
-.select{
+.__select{
   background:rgba(202,217,234,0.5);
 }
 </style>

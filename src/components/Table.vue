@@ -191,22 +191,17 @@ export default {
       const maxX = Math.max(xFrom, xTo)
       const newRow = []
 
-      for (let i = minX; i < maxX; i++) {
-        for (let col = 0; col < column; col++) {
-          if (this.tableData[i][col].rowspan !== 1 || this.tableData[i][col].colspan !== 1) {
-            console.log('包含合并')
-          }
-          const newCell = {
-            value: '',
-            x: maxX + 1,
-            y: col,
-            select: false,
-            rowspan: 1,
-            colspan: 1,
-            isMerge: false
-          }
-          newRow.push(newCell)
+      for (let col = 0; col < column; col++) {
+        const newCell = {
+          value: '',
+          x: maxX + 1,
+          y: col,
+          select: false,
+          rowspan: 1,
+          colspan: 1,
+          isMerge: false
         }
+        newRow.push(newCell)
       }
       this.tableData.splice(maxX + 1, 0, newRow)
       this.row = row + 1
@@ -337,88 +332,18 @@ export default {
         x: { from: xFrom, to: xTo },
         y: { from: yFrom, to: yTo }
       } = this.position
-      /**
-       * 选中的单元格中包含合并后的单元格的选中区域
-       */
-      const minX = Math.min(xFrom, xTo)
-      const minY = Math.min(yFrom, yTo)
-      const maxX = Math.max(xFrom, xTo)
-      const maxY = Math.max(yFrom, yTo)
-      for (let r = minX; r <= maxX; r++) {
-        for (let col = minY; col <= maxY; col++) {
-          if (this.tableData[r][col].colspan !== 1 || this.tableData[r][col].rowspan !== 1) {
-            // console.log('包含合并')
-            const colspan = this.tableData[r][col].colspan
-            const rowspan = this.tableData[r][col].rowspan
-            if (xFrom === r && yFrom === col) {
-              console.log('起点是合并单元格')
-              /**
-               * 右下到左上
-               */
-              if ((x >= xTo && x <= xFrom + rowspan - 1) && (y >= yTo && y <= yFrom + colspan - 1)) {
-                return true
-              }
-              /**
-               * 右上到左下
-               */
-              if ((x >= xFrom && x <= xTo) && (y >= yTo && y <= yFrom + colspan - 1)) {
-                return true
-              }
-              /**
-               * 左下到右上
-               */
-              if ((x >= xTo && x <= xFrom + rowspan - 1) && (y >= yFrom && y <= yTo)) {
-                return true
-              }
-            } else {
-              /**
-             * 左上到右下
-             */
-              if ((x >= xFrom && x <= xTo + rowspan - 1) && (y >= yFrom && y <= yTo + colspan - 1)) {
-                this.direction1 = true
-                return true
-              }
-              /**
-             * 左下到右上
-             */
-              if ((x <= xFrom && x >= xTo) && (y >= yFrom && y <= yTo + colspan - 1)) {
-                this.direction4 = true
-                return true
-              }
-              /**
-             * 右上 到 左下
-             */
-              if ((x >= xFrom && x <= xTo + rowspan - 1) && (y <= yFrom && y >= yTo)) {
-                this.direction2 = true
-                return true
-              }
-            }
-          }
-        }
-      }
-      /**
-       * 左上到右下
-       */
-      if (x >= xFrom && x <= xTo && (y >= yFrom && y <= yTo)) {
-        return true
-      }
-      /**
-       * 右下到左上
-       */
-      if (x <= xFrom && x >= xTo && (y <= yFrom && y >= yTo)) {
-        this.direction3 = true
-        return true
-      }
-      /**
-       * 左下到右上
-       */
-      if (x <= xFrom && x >= xTo && (y >= yFrom && y <= yTo)) {
-        return true
-      }
-      /**
-       * 右上 到 左下
-       */
-      if (x >= xFrom && x <= xTo && (y <= yFrom && y >= yTo)) {
+
+      const maxXStart = xFrom + this.tableData[xFrom][yFrom].rowspan - 1
+      const maxYStart = yFrom + this.tableData[xFrom][yFrom].colspan - 1
+      const maxXEnd = xTo + this.tableData[xTo][yTo].rowspan - 1
+      const maxYEnd = yTo + this.tableData[xTo][yTo].colspan - 1
+
+      const minXX = Math.min(xFrom, xTo)
+      const minYY = Math.min(yFrom, yTo)
+      const maxXX = Math.max(maxXStart, maxXEnd)
+      const maxYY = Math.max(maxYStart, maxYEnd)
+
+      if ((x >= minXX && x <= maxXX) && (y >= minYY && y <= maxYY)) {
         return true
       }
       return false

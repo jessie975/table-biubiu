@@ -2,9 +2,6 @@
   <div>
     <table
       ref="table"
-      @mousedown.left="downAction"
-      @mousedown.right="downActionOnce"
-      @mouseup.left="upAction"
       @contextmenu="menuShow"
     >
       <tr v-for="(r,index) in tableData" :key="index">
@@ -12,17 +9,16 @@
           <td
             v-if="!item.isMerge"
             :key="tdIndex"
-            :data-x="item.x"
-            :data-y="item.y"
             :class="[item.__select ? '__select' : '']"
             :rowspan="item.rowspan"
             :colspan="item.colspan"
-            @mousemove="moveAction"
+            @mousemove="moveAction(item.x,item.y)"
+            @mousedown.left="downAction(item.x,item.y)"
+            @mousedown.right="downActionOnce(item.x,item.y)"
+            @mouseup.left="upAction"
           >
             <input
               type="text"
-              :data-x="item.x"
-              :data-y="item.y"
               :value="'('+item.x+','+item.y+')'"
               @input="inputAction"
             >
@@ -46,7 +42,7 @@
 </template>
 
 <script>
-import throttle from 'lodash.throttle'
+// import throttle from 'lodash.throttle'
 import Menu from './Menu'
 // :value="'('+item.x+','+item.y+')'"
 export default {
@@ -55,12 +51,12 @@ export default {
     Menu
   },
   props: {
-    row: {
+    rows: {
       type: Number,
       default: 10,
       require: true
     },
-    column: {
+    columns: {
       type: Number,
       default: 10,
       require: true
@@ -69,6 +65,8 @@ export default {
   data() {
     return {
       tableData: [],
+      row: this.rows,
+      column: this.columns,
       mouseFlag: false,
       /**
        * 选中的坐标
@@ -86,7 +84,8 @@ export default {
       menuTop: 0,
       menuLeft: 0,
       showMenu: false,
-      beMergeCell: []
+      beMergeCell: [],
+      mergeCell: []
     }
   },
   watch: {
@@ -100,10 +99,17 @@ export default {
       immediate: true,
       deep: true
     },
-    row: {
+    rows: {
       handler(newName, oldName) {
-        console.log('TCL: handler -> newName', newName)
-      }
+        this.row = this.rows
+      },
+      immediate: true
+    },
+    columns: {
+      handler(newName, oldName) {
+        this.column = this.columns
+      },
+      immediate: true
     }
   },
   created() {
@@ -139,7 +145,6 @@ export default {
      * 初始化表格
      */
     initTable() {
-      debugger
       const { row, column } = this
       const tableData = []
       for (let r = 0; r < parseInt(row); r++) {
@@ -160,17 +165,10 @@ export default {
       }
       this.tableData = tableData
     },
-    updataXY() {
-      const { x, y } = event.target.dataset
-      this.position.x.from = parseInt(x)
-      this.position.y.from = parseInt(y)
-      this.position.x.to = parseInt(x)
-      this.position.y.to = parseInt(y)
-    },
     /**
      * 点击右键之后直接修改选中区域
      */
-    downActionOnce(event) {
+    downActionOnce(x, y) {
       // 如果选择的区域不是一个单元格，在其他地方点击右键则不选中
       if (
         this.position.x.from - this.position.x.to !== 0 ||
@@ -178,19 +176,24 @@ export default {
       ) {
         return
       }
-      this.updataXY()
+      this.position.x.from = parseInt(x)
+      this.position.y.from = parseInt(y)
+      this.position.x.to = parseInt(x)
+      this.position.y.to = parseInt(y)
     },
-    downAction(event) {
+    downAction(x, y) {
       this.mouseFlag = true
-      this.updataXY()
+      this.position.x.from = parseInt(x)
+      this.position.y.from = parseInt(y)
+      this.position.x.to = parseInt(x)
+      this.position.y.to = parseInt(y)
     },
-    moveAction: throttle(function(event) {
+    moveAction(x, y) {
       if (this.mouseFlag) {
-        const { x, y } = event.target.dataset
         this.position.x.to = parseInt(x)
         this.position.y.to = parseInt(y)
       }
-    }, 100),
+    },
     upAction() {
       this.mouseFlag = false
     },
@@ -201,27 +204,23 @@ export default {
       } = this.position
       const maxX = Math.max(xFrom, xTo)
       const newRow = []
-      let XX = []
-      let YY = []
-      let isMerge = false
-      for (let r = 0; r < this.beMergeCell.length; r++) {
-        XX.push(this.beMergeCell[r].x)
-        YY.push(this.beMergeCell[r].y)
+      const YY = [] // 插入的新行中包含合并的列
+      for (let i = 0; i < this.beMergeCell.length; i++) {
+        if (this.beMergeCell[i].x === maxX + 1) {
+          YY.push(this.beMergeCell[i].y)
+        }
       }
-      XX = [...new Set(XX)]
-      YY = [...new Set(YY)]
-      console.log('TCL: insertRow -> XX', XX)
       console.log('TCL: insertRow -> YY', YY)
+      let isMerge = false
       for (let col = 0; col < parseInt(column); col++) {
         // 插入位置的列中包含合并，则不显示
-        if (XX.indexOf(maxX) !== -1) {
-          if (YY.indexOf(col) > -1) {
-            isMerge = true
-          } else {
-            isMerge = false
-          }
+        if (YY.indexOf(col) > -1) {
+          isMerge = true
+          this.beMergeCell.splice(maxX + 1, 0, this.tableData[maxX + 1][col])
+          console.log('TCL: insertRow -> this.beMergeCell', this.beMergeCell)
+        } else {
+          isMerge = false
         }
-
         const newCell = {
           value: '',
           x: maxX + 1,
@@ -235,13 +234,17 @@ export default {
       }
       this.tableData.splice(maxX + 1, 0, newRow)
       // // 更新合并单元格的rowspan
-      if (this.beMergeCell.length !== 0) {
-        const xxx = this.beMergeCell[0].x
-        const yyy = this.beMergeCell[0].y - 1
-        this.tableData[xxx][yyy].rowspan += 1
-        return
+      const mergeMinX = this.mergeCell[0].x
+      const mergeMaxX = this.beMergeCell.slice(-1)[0].x
+      if (maxX >= mergeMinX && maxX <= mergeMaxX) {
+        for (let i = 0; i < this.mergeCell.length; i++) {
+          const updateMergeX = this.mergeCell[i].x
+          const updateMergeY = this.mergeCell[i].y
+          this.tableData[updateMergeX][updateMergeY].rowspan += 1
+        }
       }
       this.row = row + 1
+      this.$emit('updateRow', this.row)
     },
     insertColumn(event) {
       const { row, column } = this
@@ -310,6 +313,7 @@ export default {
           if (i === minX && j === minY) {
             tableData[i][j].rowspan = Math.abs(maxX - minX) + 1
             tableData[i][j].colspan = Math.abs(maxY - minY) + 1
+            this.mergeCell.push(tableData[i][j])
           } else {
             tableData[i][j].isMerge = true
             this.beMergeCell.push(tableData[i][j])
@@ -379,11 +383,27 @@ export default {
       const minYY = Math.min(yFrom, yTo)
       const maxXX = Math.max(maxXStart, maxXEnd)
       const maxYY = Math.max(maxYStart, maxYEnd)
+      // let mergeMinX = -1
+      // let mergeMinY = -1
+      // let beMergeCellMaxX = -1
+      // let beMergeCellMaxY = -1
+      // if (this.mergeCell.length !== 0) {
+      //   mergeMinX = Math.min.apply(Math, this.mergeCell.map(function(o) { return o.x }))
+      //   mergeMinY = Math.min.apply(Math, this.mergeCell.map(function(o) { return o.y }))
+      // }
+      // if (this.beMergeCell.length !== 0) {
+      //   beMergeCellMaxX = Math.max.apply(Math, this.beMergeCell.map(function(o) { return o.x }))
+      //   beMergeCellMaxY = Math.max.apply(Math, this.beMergeCell.map(function(o) { return o.y }))
+      // }
 
-      // const beMergeCellMaxX = Math.max.apply(Math, this.beMergeCell.map(function(o) { return o.x }))
-      // const beMergeCellMaxY = Math.max.apply(Math, this.beMergeCell.map(function(o) { return o.y }))
-      // const beMergeCellMinX = Math.min.apply(Math, this.beMergeCell.map(function(o) { return o.x }))
-      // const beMergeCellMinY = Math.min.apply(Math, this.beMergeCell.map(function(o) { return o.y }))
+      // console.log('TCL: inRange -> minXX', minXX)
+      // console.log('TCL: inRange -> minYY', minYY)
+      // console.log('TCL: inRange -> maxXX', maxXX)
+      // console.log('TCL: inRange -> maxYY', maxYY)
+      // console.log('TCL: inRange -> mergeMinX', mergeMinX)
+      // console.log('TCL: inRange -> mergeMinY', mergeMinY)
+      // console.log('TCL: inRange -> beMergeCellMaxX', beMergeCellMaxX)
+      // console.log('TCL: inRange -> beMergeCellMaxY', beMergeCellMaxY)
 
       if ((x >= minXX && x <= maxXX) && (y >= minYY && y <= maxYY)) {
         return true

@@ -94,6 +94,9 @@ export default {
         if (typeof (oldName) === 'undefined') {
           return
         }
+        if (!this.mouseFlag) {
+          return
+        }
         this.tableData = this.makeTableData()
       },
       immediate: true,
@@ -176,17 +179,17 @@ export default {
       ) {
         return
       }
-      this.position.x.from = parseInt(x)
-      this.position.y.from = parseInt(y)
-      this.position.x.to = parseInt(x)
-      this.position.y.to = parseInt(y)
+      this.position.x.from = x
+      this.position.y.from = y
+      this.position.x.to = x
+      this.position.y.to = y
     },
     downAction(x, y) {
       this.mouseFlag = true
-      this.position.x.from = parseInt(x)
-      this.position.y.from = parseInt(y)
-      this.position.x.to = parseInt(x)
-      this.position.y.to = parseInt(y)
+      this.position.x.from = x
+      this.position.y.from = y
+      this.position.x.to = x
+      this.position.y.to = y
     },
     moveAction(x, y) {
       if (this.mouseFlag) {
@@ -234,13 +237,15 @@ export default {
       }
       this.tableData.splice(maxX + 1, 0, newRow)
       // // 更新合并单元格的rowspan
-      const mergeMinX = this.mergeCell[0].x
-      const mergeMaxX = this.beMergeCell.slice(-1)[0].x
-      if (maxX >= mergeMinX && maxX <= mergeMaxX) {
-        for (let i = 0; i < this.mergeCell.length; i++) {
-          const updateMergeX = this.mergeCell[i].x
-          const updateMergeY = this.mergeCell[i].y
-          this.tableData[updateMergeX][updateMergeY].rowspan += 1
+      if (this.mergeCell.length !== 0) {
+        const mergeMinX = this.mergeCell[0].x
+        const mergeMaxX = this.beMergeCell.slice(-1)[0].x
+        if (maxX >= mergeMinX && maxX <= mergeMaxX) {
+          for (let i = 0; i < this.mergeCell.length; i++) {
+            const updateMergeX = this.mergeCell[i].x
+            const updateMergeY = this.mergeCell[i].y
+            this.tableData[updateMergeX][updateMergeY].rowspan += 1
+          }
         }
       }
       this.row = row + 1
@@ -318,9 +323,12 @@ export default {
             tableData[i][j].isMerge = true
             this.beMergeCell.push(tableData[i][j])
           }
+          console.log('TCL: mergeTd -> this.mergeCell', this.mergeCell)
+          console.log('TCL: mergeTd -> this.beMergeCell', this.beMergeCell)
           mergeValue.push(tableData[i][j].value)
         }
       }
+
       this.tableData[minX][minY].value = String(mergeValue)
     },
     /**
@@ -373,6 +381,7 @@ export default {
         x: { from: xFrom, to: xTo },
         y: { from: yFrom, to: yTo }
       } = this.position
+      let containMerge = false
 
       const maxXStart = xFrom + this.tableData[xFrom][yFrom].rowspan - 1
       const maxYStart = yFrom + this.tableData[xFrom][yFrom].colspan - 1
@@ -383,30 +392,47 @@ export default {
       const minYY = Math.min(yFrom, yTo)
       const maxXX = Math.max(maxXStart, maxXEnd)
       const maxYY = Math.max(maxYStart, maxYEnd)
-      // let mergeMinX = -1
-      // let mergeMinY = -1
-      // let beMergeCellMaxX = -1
-      // let beMergeCellMaxY = -1
-      // if (this.mergeCell.length !== 0) {
-      //   mergeMinX = Math.min.apply(Math, this.mergeCell.map(function(o) { return o.x }))
-      //   mergeMinY = Math.min.apply(Math, this.mergeCell.map(function(o) { return o.y }))
-      // }
-      // if (this.beMergeCell.length !== 0) {
-      //   beMergeCellMaxX = Math.max.apply(Math, this.beMergeCell.map(function(o) { return o.x }))
-      //   beMergeCellMaxY = Math.max.apply(Math, this.beMergeCell.map(function(o) { return o.y }))
-      // }
+      let minXXX = minXX
+      let minYYY = minYY
+      let maxXXX = maxXX
+      let maxYYY = maxYY
+      if (this.beMergeCell.length !== 0) {
+        for (let i = 0; i < this.beMergeCell.length; i++) {
+          const doX = this.beMergeCell[i].x
+          const doY = this.beMergeCell[i].y
+          if ((doX >= minXX && doX <= maxXX) && (doY >= minYY && doY <= maxYY)) {
+            const rowspan = this.mergeCell[0].rowspan
+            const colspan = this.mergeCell[0].colspan
+            const mergeMinX = this.mergeCell[0].x
+            const mergeMinY = this.mergeCell[0].y
+            const mergeMaxX = mergeMinX + rowspan - 1
+            const mergeMaxY = mergeMinY + colspan - 1
+            minXXX = Math.min(minXX, mergeMinX)
+            minYYY = Math.min(minYY, mergeMinY)
+            maxXXX = Math.max(maxXX, mergeMaxX)
+            maxYYY = Math.max(maxYY, mergeMaxY)
+            containMerge = true
+          }
+        // }
+        // console.log('TCL: inRange -> minXXX', minXXX)
+        // console.log('TCL: inRange -> minYYY', minYYY)
+        // console.log('TCL: inRange -> maxXXX', maxXXX)
+        // console.log('TCL: inRange -> maxYYY', maxYYY)
+        }
+      }
 
-      // console.log('TCL: inRange -> minXX', minXX)
-      // console.log('TCL: inRange -> minYY', minYY)
-      // console.log('TCL: inRange -> maxXX', maxXX)
-      // console.log('TCL: inRange -> maxYY', maxYY)
-      // console.log('TCL: inRange -> mergeMinX', mergeMinX)
-      // console.log('TCL: inRange -> mergeMinY', mergeMinY)
-      // console.log('TCL: inRange -> beMergeCellMaxX', beMergeCellMaxX)
-      // console.log('TCL: inRange -> beMergeCellMaxY', beMergeCellMaxY)
-
-      if ((x >= minXX && x <= maxXX) && (y >= minYY && y <= maxYY)) {
-        return true
+      /**
+       * 遍历被合并的单元格的XY，如果XY在from，to之间，则说明合并的单元格应该高亮
+       * 找到最大最小值，之间的单元格都高亮
+       */
+      if (containMerge) {
+        if ((x >= minXXX && x <= maxXXX) && (y >= minYYY && y <= maxYYY)) {
+          return true
+        }
+      } else {
+        if ((x >= minXX && x <= maxXX) && (y >= minYY && y <= maxYY)) {
+          return true
+        }
       }
       return false
     }

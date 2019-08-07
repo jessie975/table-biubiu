@@ -3,7 +3,7 @@
     <span>行：</span><input v-model="rowNumber" type="number">
     <span>列：</span><input v-model="columnNumber" type="number">
     <button @click="handelClick">创建</button>
-    <Table ref="table" :rows="Number(rowNumber)" :columns="Number(columnNumber)" :update-row.sync="updateRow" />
+    <Table ref="table" :rows="Number(rowNumber)" :columns="Number(columnNumber)" :updateRow="updateRow" />
   </div>
 </template>
 
@@ -25,10 +25,8 @@ export default {
     handelClick() {
       this.$refs.table.initTable()
     },
-    updateRow(value) {
-      debugger
-      console.log(value)
-      this.rowNumber = String(value)
+    updateRow(newRow) {
+      this.rowNumber = String(newRow)
     }
   }
 }

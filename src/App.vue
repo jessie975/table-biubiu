@@ -1,9 +1,14 @@
 <template>
   <div id="app">
-    <span>行：</span><input v-model="rowNumber" type="number">
-    <span>列：</span><input v-model="columnNumber" type="number">
+    <span>行：</span><input v-model.number="rows" type="number">
+    <span>列：</span><input v-model.number="columns" type="number">
     <button @click="handelClick">创建</button>
-    <Table ref="table" :rows="Number(rowNumber)" :columns="Number(columnNumber)" :updateRow="updateRow" />
+    <Table
+      ref="table"
+      :rows="rows"
+      :columns="columns"
+      @updateRow="updateRow"
+    />
   </div>
 </template>
 
@@ -17,8 +22,9 @@ export default {
   },
   data() {
     return {
-      rowNumber: '10',
-      columnNumber: '10'
+      rows: 10,
+      columns: 10,
+      data: []
     }
   },
   methods: {
@@ -26,7 +32,8 @@ export default {
       this.$refs.table.initTable()
     },
     updateRow(newRow) {
-      this.rowNumber = String(newRow)
+      console.log('TCL: updateRow -> newRow', newRow)
+      this.rows = newRow
     }
   }
 }

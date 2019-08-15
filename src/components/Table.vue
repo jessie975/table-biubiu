@@ -427,29 +427,35 @@ export default {
       arrayMinY.push(minSelectY)
       arrayMaxY.push(maxSelectY)
 
+      const passXY = []
       /**
          * 遍历被合并的单元格的XY，如果XY在from，to之间，则说明合并的单元格应该高亮
          * 找到最大最小值，之间的单元格都高亮
          */
-      if (this.tableData[xFrom][yFrom].rowspan === 1 || this.tableData[xFrom][yFrom].colspan === 1) {
-        for (let i = 0; i < this.beMergeCell.length; i++) {
-          const passX = this.beMergeCell[i].x
-          const passY = this.beMergeCell[i].y
-          if ((passX >= minSelectX && passX <= maxSelectX) && (passY >= minSelectY && passY <= maxSelectY)) {
-            for (let j = 0; j < this.mergeCell.length; j++) {
-              const rowspan = this.mergeCell[j].rowspan
-              const colspan = this.mergeCell[j].colspan
-              const mergeMinX = this.mergeCell[j].x
-              const mergeMinY = this.mergeCell[j].y
-              const mergeMaxX = mergeMinX + rowspan - 1
-              const mergeMaxY = mergeMinY + colspan - 1
-              // if ((passX >= mergeMinX && passX <= mergeMaxX) && (passY >= mergeMinY && passY <= mergeMaxY)) {
-              arrayMinX.push(mergeMinX)
-              arrayMaxX.push(mergeMaxX)
-              arrayMinY.push(mergeMinY)
-              arrayMaxY.push(mergeMaxY)
-              // }
-            }
+      for (let i = 0; i < this.beMergeCell.length; i++) {
+        const passX = this.beMergeCell[i].x
+        const passY = this.beMergeCell[i].y
+        if ((passX >= minSelectX && passX <= maxSelectX) && (passY >= minSelectY && passY <= maxSelectY)) {
+          passXY.push({ passX, passY })
+        }
+      }
+      console.log('TCL: inRange -> passXY', passXY)
+      for (let j = 0; j < this.mergeCell.length; j++) {
+        const rowspan = this.mergeCell[j].rowspan
+        const colspan = this.mergeCell[j].colspan
+        const mergeMinX = this.mergeCell[j].x
+        const mergeMinY = this.mergeCell[j].y
+        const mergeMaxX = mergeMinX + rowspan - 1
+        const mergeMaxY = mergeMinY + colspan - 1
+        for (let i = 0; i < passXY.length; i++) {
+          const XXX = passXY[i].passX
+          const YYY = passXY[i].passY
+          // 只处理在选中区间的合并单元格
+          if ((XXX >= mergeMinX && XXX <= mergeMaxX) && (YYY >= mergeMinY && YYY <= mergeMaxY)) {
+            arrayMinX.push(mergeMinX)
+            arrayMaxX.push(mergeMaxX)
+            arrayMinY.push(mergeMinY)
+            arrayMaxY.push(mergeMaxY)
           }
         }
       }
@@ -457,10 +463,6 @@ export default {
       const maxXXX = Math.max(...new Set(arrayMaxX))
       const minYYY = Math.min(...new Set(arrayMinY))
       const maxYYY = Math.max(...new Set(arrayMaxY))
-      console.log('TCL: inRange -> minXXX', minXXX)
-      console.log('TCL: inRange -> maxXXX', maxXXX)
-      console.log('TCL: inRange -> minYYY', minYYY)
-      console.log('TCL: inRange -> maxYYY', maxYYY)
 
       if ((x >= minXXX && x <= maxXXX) && (y >= minYYY && y <= maxYYY)) {
         return true

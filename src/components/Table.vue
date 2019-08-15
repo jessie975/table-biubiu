@@ -275,7 +275,6 @@ export default {
       for (let r = 0; r < row; r++) {
         // 插入位置的列中包含合并，则不显示
         if (shouldDeleteX.includes(r)) {
-          // mdn Array.includes;
           isMerge = true
           beMergeCell.splice(maxY, 0, tableData[maxY][r + 2])
         } else {
@@ -427,29 +426,43 @@ export default {
       arrayMinY.push(minSelectY)
       arrayMaxY.push(maxSelectY)
 
+      const passCell = []
       /**
          * 遍历被合并的单元格的XY，如果XY在from，to之间，则说明合并的单元格应该高亮
          * 找到最大最小值，之间的单元格都高亮
          */
-      if (this.tableData[xFrom][yFrom].rowspan === 1 || this.tableData[xFrom][yFrom].colspan === 1) {
-        for (let i = 0; i < this.beMergeCell.length; i++) {
-          const passX = this.beMergeCell[i].x
-          const passY = this.beMergeCell[i].y
-          if ((passX >= minSelectX && passX <= maxSelectX) && (passY >= minSelectY && passY <= maxSelectY)) {
-            for (let j = 0; j < this.mergeCell.length; j++) {
-              const rowspan = this.mergeCell[j].rowspan
-              const colspan = this.mergeCell[j].colspan
-              const mergeMinX = this.mergeCell[j].x
-              const mergeMinY = this.mergeCell[j].y
-              const mergeMaxX = mergeMinX + rowspan - 1
-              const mergeMaxY = mergeMinY + colspan - 1
-              // if ((passX >= mergeMinX && passX <= mergeMaxX) && (passY >= mergeMinY && passY <= mergeMaxY)) {
-              arrayMinX.push(mergeMinX)
-              arrayMaxX.push(mergeMaxX)
-              arrayMinY.push(mergeMinY)
-              arrayMaxY.push(mergeMaxY)
-              // }
-            }
+      for (let i = 0; i < this.beMergeCell.length; i++) {
+        const passCellX = this.beMergeCell[i].x
+        const passCellY = this.beMergeCell[i].y
+        if ((passCellX >= minSelectX && passCellX <= maxSelectX) &&
+            (passCellY >= minSelectY && passCellY <= maxSelectY)) {
+          passCell.push({ passCellX, passCellY })
+        }
+      }
+      for (let i = 0; i < this.mergeCell.length; i++) {
+        const passCellX = this.mergeCell[i].x
+        const passCellY = this.mergeCell[i].y
+        if ((passCellX >= minSelectX && passCellX <= maxSelectX) &&
+            (passCellY >= minSelectY && passCellY <= maxSelectY)) {
+          passCell.push({ passCellX, passCellY })
+        }
+      }
+      console.log('TCL: inRange -> passCell', passCell)
+      for (let j = 0; j < this.mergeCell.length; j++) {
+        const rowspan = this.mergeCell[j].rowspan
+        const colspan = this.mergeCell[j].colspan
+        const mergeCellMinX = this.mergeCell[j].x
+        const mergeCellMinY = this.mergeCell[j].y
+        const mergeCellMaxX = mergeCellMinX + rowspan - 1
+        const mergeCellMaxY = mergeCellMinY + colspan - 1
+        for (let k = 0; k < passCell.length; k++) {
+          // 只处理在选中区间的合并单元格
+          if ((passCell[k].passCellX >= mergeCellMinX && passCell[k].passCellX <= mergeCellMaxX) &&
+              (passCell[k].passCellY >= mergeCellMinY && passCell[k].passCellY <= mergeCellMaxY)) {
+            arrayMinX.push(mergeCellMinX)
+            arrayMaxX.push(mergeCellMaxX)
+            arrayMinY.push(mergeCellMinY)
+            arrayMaxY.push(mergeCellMaxY)
           }
         }
       }
@@ -457,10 +470,6 @@ export default {
       const maxXXX = Math.max(...new Set(arrayMaxX))
       const minYYY = Math.min(...new Set(arrayMinY))
       const maxYYY = Math.max(...new Set(arrayMaxY))
-      console.log('TCL: inRange -> minXXX', minXXX)
-      console.log('TCL: inRange -> maxXXX', maxXXX)
-      console.log('TCL: inRange -> minYYY', minYYY)
-      console.log('TCL: inRange -> maxYYY', maxYYY)
 
       if ((x >= minXXX && x <= maxXXX) && (y >= minYYY && y <= maxYYY)) {
         return true

@@ -199,20 +199,13 @@ export default {
     upAction() {
       this.isMouse = false
     },
-    /**
-     * 更新合并单元格的rowspan或者colspan
-     */
-    updateMergeCellOfColspanOrRowspan(max, kindSpan) {
-      if (this.mergeCell.length !== 0) {
-        for (let i = 0; i < this.mergeCell.length; i++) {
-          const mergeCellX = this.mergeCell[i].x
-          const mergeCellY = this.mergeCell[i].y
-          if (mergeCellX >= max - 1 && mergeCellX < max + 1) {
-            if (kindSpan) {
-              this.tableData[mergeCellX][mergeCellY].rowspan += 1
-            } else {
-              this.tableData[mergeCellX][mergeCellY].colspan += 1
-            }
+    // 更新被合并的单元格
+    updateBeMergeCell() {
+      this.beMergeCell.length = 0
+      for (let i = 0; i < this.localRow; i++) {
+        for (let j = 0; j < this.localColumn; j++) {
+          if (this.tableData[i][j].isMerge) {
+            this.beMergeCell.push(this.tableData[i][j])
           }
         }
       }
@@ -228,27 +221,38 @@ export default {
       } = this
       const maxX = Math.max(from, to)
       const newRow = []
-      const isRowspan = true
-      let isMerge = false
-      // 插入的新行中包含被合并的列数组：shouldDeleteY
       let shouldDeleteY = []
-      for (let i = 0; i < beMergeCell.length; i++) {
-        if (beMergeCell[i].x === maxX || beMergeCell[i].x === maxX - 1) {
-          shouldDeleteY.push(beMergeCell[i].y)
-        }
-      }
+      let isMerge = false
       for (let i = 0; i < mergeCell.length; i++) {
-        if (mergeCell[i].x === maxX || mergeCell[i].x === maxX - 1) {
-          shouldDeleteY.push(mergeCell[i].y)
+        const minXOfmergeCell = mergeCell[i].x
+        const minYOfmergeCell = mergeCell[i].y
+        const maxXOfmergeCell = mergeCell[i].x + mergeCell[i].rowspan - 1
+        // 更新插入后合并单元格和被合并单元格的横坐标
+        if (minXOfmergeCell >= maxX + 1) {
+          mergeCell[i].x += 1
+          for (let j = 0; j < beMergeCell.length; j++) {
+            beMergeCell[j].x += 1
+          }
+        }
+        if (maxX + 1 >= minXOfmergeCell && maxX + 1 <= maxXOfmergeCell) {
+          // 找到插入后应该被删掉的y坐标
+          for (let j = 0; j < beMergeCell.length; j++) {
+            if (beMergeCell[j].x === maxX + 1) {
+              shouldDeleteY.push(beMergeCell[j].y)
+            }
+          }
+          // 更改合并单元格最左上角的rowspan
+          if (minXOfmergeCell <= maxX) {
+            mergeCell[i].rowspan += 1
+            tableData[minXOfmergeCell][minYOfmergeCell].rowspan += 1
+          }
         }
       }
       shouldDeleteY = [...new Set(shouldDeleteY)]
-      console.log('TCL: insertRow -> shouldDeleteY', shouldDeleteY)
-      for (let col = 0; col < localColumn; col++) {
+      for (let col = 0; col <= localColumn; col++) {
         // 插入位置的列中包含合并，则不显示
         if (shouldDeleteY.includes(col)) {
           isMerge = true
-          beMergeCell.splice(maxX, 0, tableData[maxX + 2][col])
         } else {
           isMerge = false
         }
@@ -264,44 +268,53 @@ export default {
         newRow.push(newCell)
       }
       tableData.splice(maxX + 1, 0, newRow)
-      this.tableData = this.makeTableData()
-
-      // 更新合并单元格的rowspan
-      this.updateMergeCellOfColspanOrRowspan(maxX, isRowspan)
       this.localRow += 1
       this.tableData = this.makeTableData()
-      this.$emit('insertRow', this.localRow)
+      this.updateBeMergeCell()
     },
     insertColumn() {
       const {
         position:
         { y: { from, to }},
         localRow,
+        tableData,
         beMergeCell,
-        mergeCell,
-        tableData
+        mergeCell
       } = this
       const maxY = Math.max(from, to)
-      const isRowspan = false
-      // 插入的新列中包含被合并的行数组：shouldDeleteX
       let shouldDeleteX = []
-      for (let i = 0; i < beMergeCell.length; i++) {
-        if (beMergeCell[i].x === maxY || beMergeCell[i].x === maxY - 1) {
-          shouldDeleteX.push(beMergeCell[i].y)
-        }
-      }
+      let isMerge = false
       for (let i = 0; i < mergeCell.length; i++) {
-        if (mergeCell[i].x === maxY || mergeCell[i].x === maxY - 1) {
-          shouldDeleteX.push(mergeCell[i].y)
+        const minXOfmergeCell = mergeCell[i].x
+        const minYOfmergeCell = mergeCell[i].y
+        const maxYOfmergeCell = mergeCell[i].y + mergeCell[i].colspan - 1
+        // // 更新插入后合并单元格和被合并单元格的纵坐标
+        // if (minYOfmergeCell >= maxY + 1) {
+        //   mergeCell[i].y += 1
+        //   for (let j = 0; j < beMergeCell.length; j++) {
+        //     beMergeCell[j].y += 1
+        //   }
+        // }
+        if (maxY + 1 >= minYOfmergeCell && maxY + 1 <= maxYOfmergeCell) {
+          // 找到插入后应该被删掉的x坐标
+          for (let j = 0; j < beMergeCell.length; j++) {
+            if (beMergeCell[j].y === maxY + 1) {
+              shouldDeleteX.push(beMergeCell[j].x)
+            }
+          }
+          // 更改合并单元格最左上角的colspan
+          if (minYOfmergeCell <= maxY) {
+            mergeCell[i].colspan += 1
+            tableData[minXOfmergeCell][minYOfmergeCell].colspan += 1
+          }
         }
       }
       shouldDeleteX = [...new Set(shouldDeleteX)]
-      let isMerge = false
+      console.log(shouldDeleteX)
       for (let r = 0; r < localRow; r++) {
         // 插入位置的列中包含合并，则不显示
         if (shouldDeleteX.includes(r)) {
           isMerge = true
-          beMergeCell.splice(maxY, 0, tableData[maxY][r + 2])
         } else {
           isMerge = false
         }
@@ -314,13 +327,11 @@ export default {
           colspan: 1,
           isMerge
         }
-        tableData[r].splice(maxY + 1, 0, newCell)
+        tableData[r].push(newCell)
       }
-      // 更新合并单元格的colspan
-      this.updateMergeCellOfColspanOrRowspan(maxY, isRowspan)
       this.localColumn += 1
-      this.$emit('insertColumn', this.localColumn)
       this.tableData = this.makeTableData()
+      this.updateBeMergeCell()
     },
     deleteRow() {
       const { from, to } = this.position.x
@@ -391,7 +402,7 @@ export default {
           let rowspanDefault = 1
           let colspanDefault = 1
           let isMerge = false
-          if (tableData[r][col].colspan !== 1 || tableData[r][col].rowspan !== 1) {
+          if (this.tableData[r][col].colspan !== 1 || tableData[r][col].rowspan !== 1) {
             rowspanDefault = tableData[r][col].rowspan
             colspanDefault = tableData[r][col].colspan
           }

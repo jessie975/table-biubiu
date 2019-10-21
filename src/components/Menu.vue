@@ -1,10 +1,10 @@
 <template>
-  <ul v-show="menuShow" :style="{top: top+'px', left: left +'px'}" @click="handelClick">
-    <li data-type="insertRow">插入行(↓)</li>
-    <li data-type="insertColumn">插入列(→)</li>
-    <li data-type="deleteRow">删除行</li>
-    <li data-type="deleteColumn">删除列</li>
-    <li data-type="mergeTd">合并单元格</li>
+  <ul v-show="menuShow" :style="{top: top+'px', left: left +'px'}">
+    <li @click="insertRow">插入行(↓)</li>
+    <li @click="insertColumn">插入列(→)</li>
+    <li @click="deleteRow">删除行</li>
+    <li @click="deleteColumn">删除列</li>
+    <li @click="mergeTd">合并单元格</li>
   </ul>
 </template>
 
@@ -36,10 +36,25 @@ export default {
     }
   },
   methods: {
-    handelClick(event) {
-      const { type } = event.target.dataset
+    insertRow() {
       this.menuShow = !this.menuShow
-      this.$emit(type, this.showMenu)
+      this.$emit('insertRow', this.showMenu)
+    },
+    insertColumn() {
+      this.menuShow = !this.menuShow
+      this.$emit('insertColumn', this.showMenu)
+    },
+    deleteRow() {
+      this.menuShow = !this.menuShow
+      this.$emit('deleteRow', this.showMenu)
+    },
+    deleteColumn() {
+      this.menuShow = !this.menuShow
+      this.$emit('deleteColumn', this.showMenu)
+    },
+    mergeTd() {
+      this.menuShow = !this.menuShow
+      this.$emit('mergeTd', this.showMenu)
     }
   }
 }

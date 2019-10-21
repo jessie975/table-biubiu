@@ -6,7 +6,7 @@
           <td
             v-if="!item.isMerge"
             :key="tdIndex"
-            :class="[item.__select ? 'select' : '']"
+            :class="[item.isSelect ? 'select' : '']"
             :rowspan="item.rowspan"
             :colspan="item.colspan"
             @mousemove="moveAction(item.x,item.y)"
@@ -15,12 +15,11 @@
             @mouseup.left="upAction"
             @contextmenu="menuShow"
           >
-            <input
-              type="text"
-              :value="'('+item.x+','+item.y+')'"
-              @input="inputAction"
-            >
-            {{/* :value="'('+item.x+','+item.y+')'" */}}
+            <!-- <input type="text" :value="value" @input="$emit('input', $event.target.value)"> -->
+            <!-- <div class="cell" contenteditable="true" /> -->
+            <!-- <slot /> -->
+            {{ '('+item.x+','+item.y+')' }}
+            <!--{{ :value="'('+item.x+','+item.y+')'" }}-->
           </td>
         </template>
       </tr>
@@ -41,13 +40,16 @@
 </template>
 
 <script>
-import lodash from 'lodash'
 import Menu from './Menu'
 
 export default {
   name: 'Table',
   components: {
     Menu
+  },
+  model: {
+    prop: 'value',
+    event: 'input'
   },
   props: {
     rows: {
@@ -59,13 +61,17 @@ export default {
       type: Number,
       default: 10,
       require: true
+    },
+    value: {
+      type: String,
+      default: ''
     }
   },
   data() {
     return {
       tableData: [],
-      row: this.rows,
-      column: this.columns,
+      localRow: this.rows,
+      localColumn: this.columns,
       isMouse: false,
       /**
        * 选中的坐标
@@ -90,10 +96,15 @@ export default {
       mergeCell: []
     }
   },
+  computed: {
+  },
   watch: {
     position: {
       handler(newName, oldName) {
         if (typeof oldName === 'undefined') {
+          return
+        }
+        if (newName.x.from === -1 && oldName.x.from !== -1) {
           return
         }
         this.tableData = this.makeTableData()
@@ -102,20 +113,21 @@ export default {
       deep: true
     },
     rows() {
-      this.row = this.rows
+      this.localRow = this.rows
+      // localRow
     },
     columns() {
-      this.column = this.columns
+      this.localColumn = this.columns
     }
   },
-  // created() {
-  //   this.initTable()
-  // },
+  created() {
+    this.initTable()
+  },
   mounted() {
-    document.addEventListener('click', this.handlerClose)
+    document.addEventListener('click', this.menuClose)
   },
   destroyed() {
-    document.removeEventListener('click', this.handlerClose)
+    document.removeEventListener('click', this.menuClose)
   },
   methods: {
     menuShow(event) {
@@ -125,7 +137,7 @@ export default {
       this.menuLeft = clientX
       this.isShowMenu = true
     },
-    handlerClose(event) {
+    menuClose(event) {
       if (!this.$refs.menu.$el.contains(event.target)) {
         this.isShowMenu = false
       }
@@ -134,16 +146,16 @@ export default {
      * 初始化表格
      */
     initTable() {
-      const { row, column } = this
+      const { localRow, localColumn } = this
       const tableData = []
-      for (let r = 0; r < row; r++) {
+      for (let r = 0; r < localRow; r++) {
         const arr = []
-        for (let col = 0; col < column; col++) {
+        for (let col = 0; col < localColumn; col++) {
           const obj = {
             value: `(${r},${col})`,
             x: r,
             y: col,
-            __select: false,
+            isSelect: false,
             rowspan: 1,
             colspan: 1,
             isMerge: false
@@ -192,18 +204,14 @@ export default {
      */
     updateMergeCellOfColspanOrRowspan(max, kindSpan) {
       if (this.mergeCell.length !== 0) {
-        // FIXME:未处理多个合并单元格情况
-        const mergeMinX = this.mergeCell[0].x
-        const mergeMaxX = this.beMergeCell.slice(-1)[0].x
-        if (max >= mergeMinX && max <= mergeMaxX) {
-          for (let i = 0; i < this.mergeCell.length; i++) {
-            const updateMergeX = this.mergeCell[i].x
-            const updateMergeY = this.mergeCell[i].y
-            debugger
+        for (let i = 0; i < this.mergeCell.length; i++) {
+          const mergeCellX = this.mergeCell[i].x
+          const mergeCellY = this.mergeCell[i].y
+          if (mergeCellX >= max - 1 && mergeCellX < max + 1) {
             if (kindSpan) {
-              this.tableData[updateMergeX][updateMergeY].rowspan += 1
+              this.tableData[mergeCellX][mergeCellY].rowspan += 1
             } else {
-              this.tableData[updateMergeX][updateMergeY].colspan += 1
+              this.tableData[mergeCellX][mergeCellY].colspan += 1
             }
           }
         }
@@ -213,25 +221,32 @@ export default {
       const {
         position:
         { x: { from, to }},
-        column,
+        localColumn,
         tableData,
-        beMergeCell
+        beMergeCell,
+        mergeCell
       } = this
       const maxX = Math.max(from, to)
       const newRow = []
       const isRowspan = true
       let isMerge = false
-      // 插入的新行中包含被合并的列数组：shouldDeleteX
-      const shouldDeleteY = []
+      // 插入的新行中包含被合并的列数组：shouldDeleteY
+      let shouldDeleteY = []
       for (let i = 0; i < beMergeCell.length; i++) {
-        if (beMergeCell[i].x === maxX + 1) {
+        if (beMergeCell[i].x === maxX || beMergeCell[i].x === maxX - 1) {
           shouldDeleteY.push(beMergeCell[i].y)
         }
       }
-      for (let col = 0; col < column; col++) {
+      for (let i = 0; i < mergeCell.length; i++) {
+        if (mergeCell[i].x === maxX || mergeCell[i].x === maxX - 1) {
+          shouldDeleteY.push(mergeCell[i].y)
+        }
+      }
+      shouldDeleteY = [...new Set(shouldDeleteY)]
+      console.log('TCL: insertRow -> shouldDeleteY', shouldDeleteY)
+      for (let col = 0; col < localColumn; col++) {
         // 插入位置的列中包含合并，则不显示
         if (shouldDeleteY.includes(col)) {
-          // mdn Array.includes;
           isMerge = true
           beMergeCell.splice(maxX, 0, tableData[maxX + 2][col])
         } else {
@@ -241,7 +256,7 @@ export default {
           value: '',
           x: maxX + 1,
           y: col,
-          __select: false,
+          isSelect: false,
           rowspan: 1,
           colspan: 1,
           isMerge
@@ -249,30 +264,40 @@ export default {
         newRow.push(newCell)
       }
       tableData.splice(maxX + 1, 0, newRow)
+      this.tableData = this.makeTableData()
+
       // 更新合并单元格的rowspan
       this.updateMergeCellOfColspanOrRowspan(maxX, isRowspan)
-      this.row += 1
-      this.$emit('insertRow', this.row)
+      this.localRow += 1
+      this.tableData = this.makeTableData()
+      this.$emit('insertRow', this.localRow)
     },
     insertColumn() {
       const {
         position:
         { y: { from, to }},
-        row,
+        localRow,
         beMergeCell,
+        mergeCell,
         tableData
       } = this
       const maxY = Math.max(from, to)
       const isRowspan = false
       // 插入的新列中包含被合并的行数组：shouldDeleteX
-      const shouldDeleteX = []
+      let shouldDeleteX = []
       for (let i = 0; i < beMergeCell.length; i++) {
-        if (beMergeCell[i].y === maxY + 1) {
-          shouldDeleteX.push(beMergeCell[i].x)
+        if (beMergeCell[i].x === maxY || beMergeCell[i].x === maxY - 1) {
+          shouldDeleteX.push(beMergeCell[i].y)
         }
       }
+      for (let i = 0; i < mergeCell.length; i++) {
+        if (mergeCell[i].x === maxY || mergeCell[i].x === maxY - 1) {
+          shouldDeleteX.push(mergeCell[i].y)
+        }
+      }
+      shouldDeleteX = [...new Set(shouldDeleteX)]
       let isMerge = false
-      for (let r = 0; r < row; r++) {
+      for (let r = 0; r < localRow; r++) {
         // 插入位置的列中包含合并，则不显示
         if (shouldDeleteX.includes(r)) {
           isMerge = true
@@ -284,7 +309,7 @@ export default {
           value: '',
           x: r,
           y: maxY + 1,
-          __select: false,
+          isSelect: false,
           rowspan: 1,
           colspan: 1,
           isMerge
@@ -293,36 +318,37 @@ export default {
       }
       // 更新合并单元格的colspan
       this.updateMergeCellOfColspanOrRowspan(maxY, isRowspan)
-      this.column += 1
-      this.$emit('insertColumn', this.column)
+      this.localColumn += 1
+      this.$emit('insertColumn', this.localColumn)
+      this.tableData = this.makeTableData()
     },
     deleteRow() {
       const { from, to } = this.position.x
       this.tableData.splice(Math.min(from, to), Math.abs(to - from) + 1)
-      this.row = this.row - (Math.abs(to - from) + 1)
-      this.$emit('deleteRow', this.row)
+      this.localRow = this.localRow - (Math.abs(to - from) + 1)
+      this.$emit('deleteRow', this.localRow)
     },
     deleteColumn() {
       const { from, to } = this.position.y
-      this.column = this.column - (Math.abs(to - from) + 1)
+      this.localColumn = this.localColumn - (Math.abs(to - from) + 1)
       this.tableData.forEach((arr, index) => {
         arr.splice(Math.min(from, to), Math.abs(to - from) + 1)
       })
-      this.$emit('deleteColumn', this.column)
+      this.$emit('deleteColumn', this.localColumn)
     },
     mergeTd() {
+      const { localRow, localColumn } = this
       const mergeValue = []
-      const { row, column } = this
       /**
        * 不做拷贝, 直接修改this.tableData
        * 因为修改的是数组的对象, 所以vue也能感知到数据变化
        */
       const tableData = this.tableData
       let minX, minY, maxX, maxY
-      for (let r = 0; r < parseInt(row); r++) {
-        for (let col = 0; col < parseInt(column); col++) {
+      for (let r = 0; r < parseInt(localRow); r++) {
+        for (let col = 0; col < parseInt(localColumn); col++) {
           // 被选中区域
-          if (tableData[r][col].__select) {
+          if (tableData[r][col].isSelect) {
             if (typeof minX === 'undefined') { minX = r }
             if (typeof maxX === 'undefined') { maxX = r }
             if (typeof minY === 'undefined') { minY = col }
@@ -345,31 +371,23 @@ export default {
             tableData[i][j].isMerge = true
             this.beMergeCell.push(tableData[i][j])
           }
-          mergeValue.push(tableData[i][j].value)
+          if (tableData[i][j].value !== '') {
+            mergeValue.push(tableData[i][j].value)
+          }
         }
       }
 
       this.tableData[minX][minY].value = String(mergeValue)
     },
     /**
-     * 输入完成
-     */
-    inputAction(event) {
-      const {
-        dataset: { x, y },
-        value
-      } = event.target
-      this.tableData[x][y].value = value
-    },
-    /**
      * 选中区域的数组重新生成
      */
     makeTableData() {
       const tableData = [...this.tableData]
-      const { row, column } = this
-      for (let r = 0; r < row; r++) {
+      const { localRow, localColumn } = this
+      for (let r = 0; r < localRow; r++) {
         const arr = []
-        for (let col = 0; col < column; col++) {
+        for (let col = 0; col < localColumn; col++) {
           let rowspanDefault = 1
           let colspanDefault = 1
           let isMerge = false
@@ -380,12 +398,12 @@ export default {
           if (tableData[r][col].isMerge) {
             isMerge = true
           }
-          const __select = this.inRange(r, col)
+          const isSelect = this.inRange(r, col)
           const obj = {
             value: this.tableData[r][col].value,
             x: r,
             y: col,
-            __select,
+            isSelect,
             rowspan: rowspanDefault,
             colspan: colspanDefault,
             isMerge
@@ -395,10 +413,6 @@ export default {
         tableData[r] = arr
       }
       return tableData
-    },
-    repeal() {
-      // const newState = lodash.cloneDeep(this.tableData)
-      // return newState
     },
     inRange(x, y) {
       const {
@@ -411,67 +425,55 @@ export default {
       const maxXEnd = xTo + this.tableData[xTo][yTo].rowspan - 1
       const maxYEnd = yTo + this.tableData[xTo][yTo].colspan - 1
 
-      const minSelectX = Math.min(xFrom, xTo)
-      const minSelectY = Math.min(yFrom, yTo)
-      const maxSelectX = Math.max(maxXStart, maxXEnd)
-      const maxSelectY = Math.max(maxYStart, maxYEnd)
+      let minSelectX = Math.min(xFrom, xTo)
+      let minSelectY = Math.min(yFrom, yTo)
+      let maxSelectX = Math.max(maxXStart, maxXEnd)
+      let maxSelectY = Math.max(maxYStart, maxYEnd)
 
-      const arrayMinX = []
-      const arrayMaxX = []
-      const arrayMinY = []
-      const arrayMaxY = []
-
-      arrayMinX.push(minSelectX)
-      arrayMaxX.push(maxSelectX)
-      arrayMinY.push(minSelectY)
-      arrayMaxY.push(maxSelectY)
-
-      const passCell = []
-      /**
-         * 遍历被合并的单元格的XY，如果XY在from，to之间，则说明合并的单元格应该高亮
-         * 找到最大最小值，之间的单元格都高亮
-         */
-      for (let i = 0; i < this.beMergeCell.length; i++) {
-        const passCellX = this.beMergeCell[i].x
-        const passCellY = this.beMergeCell[i].y
-        if ((passCellX >= minSelectX && passCellX <= maxSelectX) &&
-            (passCellY >= minSelectY && passCellY <= maxSelectY)) {
-          passCell.push({ passCellX, passCellY })
+      if (this.beMergeCell.length !== 0) {
+        // 起始点间是否包含合并的单元格
+        for (let i = 0; i < this.mergeCell.length; i++) {
+          const mergeCellMinX = this.mergeCell[i].x
+          const mergeCellMinY = this.mergeCell[i].y
+          if ((mergeCellMinX >= minSelectX && mergeCellMinX <= maxSelectX) &&
+              (mergeCellMinY >= minSelectY && mergeCellMinY <= maxSelectY)) {
+            const rowspan = this.mergeCell[i].rowspan
+            const colspan = this.mergeCell[i].colspan
+            const mergeCellMaxX = mergeCellMinX + rowspan - 1
+            const mergeCellMaxY = mergeCellMinY + colspan - 1
+            minSelectX = mergeCellMinX < minSelectX ? mergeCellMinX : minSelectX
+            maxSelectX = mergeCellMaxX > maxSelectX ? mergeCellMaxX : maxSelectX
+            minSelectY = mergeCellMinY < minSelectY ? mergeCellMinY : minSelectY
+            maxSelectY = mergeCellMaxY > maxSelectY ? mergeCellMaxY : maxSelectY
+          }
         }
-      }
-      for (let i = 0; i < this.mergeCell.length; i++) {
-        const passCellX = this.mergeCell[i].x
-        const passCellY = this.mergeCell[i].y
-        if ((passCellX >= minSelectX && passCellX <= maxSelectX) &&
-            (passCellY >= minSelectY && passCellY <= maxSelectY)) {
-          passCell.push({ passCellX, passCellY })
-        }
-      }
-      console.log('TCL: inRange -> passCell', passCell)
-      for (let j = 0; j < this.mergeCell.length; j++) {
-        const rowspan = this.mergeCell[j].rowspan
-        const colspan = this.mergeCell[j].colspan
-        const mergeCellMinX = this.mergeCell[j].x
-        const mergeCellMinY = this.mergeCell[j].y
-        const mergeCellMaxX = mergeCellMinX + rowspan - 1
-        const mergeCellMaxY = mergeCellMinY + colspan - 1
-        for (let k = 0; k < passCell.length; k++) {
-          // 只处理在选中区间的合并单元格
-          if ((passCell[k].passCellX >= mergeCellMinX && passCell[k].passCellX <= mergeCellMaxX) &&
-              (passCell[k].passCellY >= mergeCellMinY && passCell[k].passCellY <= mergeCellMaxY)) {
-            arrayMinX.push(mergeCellMinX)
-            arrayMaxX.push(mergeCellMaxX)
-            arrayMinY.push(mergeCellMinY)
-            arrayMaxY.push(mergeCellMaxY)
+
+        // 起始点间是否包含被合并的单元格，并找到被合并单元格对应的合并单元格
+        for (let i = 0; i < this.beMergeCell.length; i++) {
+          const passCellX = this.beMergeCell[i].x
+          const passCellY = this.beMergeCell[i].y
+          if ((passCellX >= minSelectX && passCellX <= maxSelectX) &&
+              (passCellY >= minSelectY && passCellY <= maxSelectY)) {
+            for (let j = 0; j < this.mergeCell.length; j++) {
+              const rowspan = this.mergeCell[j].rowspan
+              const colspan = this.mergeCell[j].colspan
+              const mergeCellMinX = this.mergeCell[j].x
+              const mergeCellMinY = this.mergeCell[j].y
+              const mergeCellMaxX = mergeCellMinX + rowspan - 1
+              const mergeCellMaxY = mergeCellMinY + colspan - 1
+              if ((passCellX >= mergeCellMinX && passCellX <= mergeCellMaxX) &&
+                  (passCellY >= mergeCellMinY && passCellY <= mergeCellMaxY)) {
+                minSelectX = mergeCellMinX < minSelectX ? mergeCellMinX : minSelectX
+                maxSelectX = mergeCellMaxX > maxSelectX ? mergeCellMaxX : maxSelectX
+                minSelectY = mergeCellMinY < minSelectY ? mergeCellMinY : minSelectY
+                maxSelectY = mergeCellMaxY > maxSelectY ? mergeCellMaxY : maxSelectY
+              }
+            }
           }
         }
       }
-      const minXXX = Math.min(...new Set(arrayMinX))
-      const maxXXX = Math.max(...new Set(arrayMaxX))
-      const minYYY = Math.min(...new Set(arrayMinY))
-      const maxYYY = Math.max(...new Set(arrayMaxY))
 
-      if ((x >= minXXX && x <= maxXXX) && (y >= minYYY && y <= maxYYY)) {
+      if ((x >= minSelectX && x <= maxSelectX) && (y >= minSelectY && y <= maxSelectY)) {
         return true
       }
       return false
@@ -522,5 +524,9 @@ table td:hover{
 }
 .select{
   background:rgba(202,217,234,0.5);
+}
+.cell{
+  width: 100px;
+  height: 30px;
 }
 </style>

@@ -4,7 +4,6 @@
       <span>行：</span><input v-model.number="rows" type="number">
       <span>列：</span><input v-model.number="columns" type="number">
       <button @click="handelClick">创建</button>
-      <button @click="repeal">撤销</button>
     </div>
     <Table
       ref="table"
@@ -36,9 +35,6 @@ export default {
     handelClick() {
       this.$refs.table.initTable()
     },
-    repeal() {
-      this.$refs.table.repeal()
-    },
     insertRow(newRow) {
       this.rows = newRow
     },
@@ -58,11 +54,7 @@ export default {
 
 <style>
 #app {
-  font-family: 'Avenir', Helvetica, Arial, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
   text-align: center;
-  color: #2c3e50;
   margin-top: 60px;
 }
 .control{

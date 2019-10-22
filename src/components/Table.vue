@@ -35,6 +35,7 @@
       @deleteColumn="deleteColumn"
       @insertRow="insertRow"
       @mergeTd="mergeTd"
+      @breakTd="breakTd"
     />
   </div>
 </template>
@@ -114,7 +115,6 @@ export default {
     },
     rows() {
       this.localRow = this.rows
-      // localRow
     },
     columns() {
       this.localColumn = this.columns
@@ -288,14 +288,7 @@ export default {
         const minXOfmergeCell = mergeCell[i].x
         const minYOfmergeCell = mergeCell[i].y
         const maxYOfmergeCell = mergeCell[i].y + mergeCell[i].colspan - 1
-        // // 更新插入后合并单元格和被合并单元格的纵坐标
-        // if (minYOfmergeCell >= maxY + 1) {
-        //   mergeCell[i].y += 1
-        //   for (let j = 0; j < beMergeCell.length; j++) {
-        //     beMergeCell[j].y += 1
-        //   }
-        // }
-        if (maxY + 1 >= minYOfmergeCell && maxY + 1 <= maxYOfmergeCell) {
+        if (maxY + 1 > minYOfmergeCell && maxY + 1 <= maxYOfmergeCell) {
           // 找到插入后应该被删掉的x坐标
           for (let j = 0; j < beMergeCell.length; j++) {
             if (beMergeCell[j].y === maxY + 1) {
@@ -327,7 +320,7 @@ export default {
           colspan: 1,
           isMerge
         }
-        tableData[r].push(newCell)
+        tableData[r].splice(maxY + 1, 0, newCell)
       }
       this.localColumn += 1
       this.tableData = this.makeTableData()
@@ -488,6 +481,19 @@ export default {
         return true
       }
       return false
+    },
+    breakTd() {
+      const {
+        x: { from: xFrom, to: xTo },
+        y: { from: yFrom, to: yTo }
+      } = this.position
+      if (xFrom - xTo !== 0 || yFrom - yTo !== 0) { alert('只能选择一个单元格') }
+
+      // const breakRow = prompt('行', '')
+      // const breakColumn = prompt('列', '')
+
+      // console.log(breakRow, breakColumn)
+      console.log(this.tableData[xTo][yTo])
     }
   }
 }
@@ -514,7 +520,7 @@ table tr {
 }
 table td {
   padding: 0 5px;
-  width: 100px;
+  width: 300px;
   box-sizing: border-box;
   user-select: none;
 }

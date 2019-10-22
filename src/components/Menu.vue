@@ -5,6 +5,7 @@
     <li @click="deleteRow">删除行</li>
     <li @click="deleteColumn">删除列</li>
     <li @click="mergeTd">合并单元格</li>
+    <li @click="breakTd">拆分单元格</li>
   </ul>
 </template>
 
@@ -55,6 +56,10 @@ export default {
     mergeTd() {
       this.menuShow = !this.menuShow
       this.$emit('mergeTd', this.showMenu)
+    },
+    breakTd() {
+      this.menuShow = !this.menuShow
+      this.$emit('breakTd', this.showMenu)
     }
   }
 }

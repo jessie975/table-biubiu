@@ -27,8 +27,8 @@ export default {
   },
   data() {
     return {
-      rows: 10,
-      columns: 10
+      rows: 5,
+      columns: 5
     }
   },
   methods: {
